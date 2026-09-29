@@ -1,0 +1,12 @@
+# Entorno de Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Fotos de los apuntes (material de clase; se quedan solo en local)
+WhatsApp Image *.jpeg
+formula_examples/
+names_and_formulas/
+
+# Sistema
+.DS_Store

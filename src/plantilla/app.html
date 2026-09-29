@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buscador de Fórmulas</title>
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+
+<header>
+  <div class="cabecera">
+    <h1>Buscador de Fórmulas</h1>
+    <p class="sub">Química orgánica · escribe el nombre de un compuesto y verás su fórmula</p>
+  </div>
+  <div class="buscador">
+    <input id="q" type="text" autocomplete="off" spellcheck="false"
+           placeholder="Escribe un nombre… (butan, fenol, ácido 3-oxo… también C4H8O)">
+    <button id="limpiar" type="button" title="Borrar">✕</button>
+    <ul id="sugerencias" hidden></ul>
+  </div>
+  <div id="filtros" class="filtros"></div>
+</header>
+
+<main>
+  <div id="vacio" class="vacio">
+    <p>Escribe el nombre de un compuesto, o recórrelos todos en la lista de abajo.</p>
+    <p class="pista">Funciona sin internet. Si un nombre no está en los apuntes,
+       el programa puede intentar construir la fórmula por su cuenta.</p>
+  </div>
+
+  <div id="no-encontrado" hidden></div>
+  <div id="detalle" hidden></div>
+
+  <h2 id="titulo-lista">Todos los compuestos</h2>
+  <div id="lista" class="lista"></div>
+</main>
+
+<div id="imagenes" hidden>
+__IMAGENES__
+</div>
+
+<script>
+/*__SMILESDRAWER__*/
+</script>
+<script>
+/*__PARSER__*/
+</script>
+<script>
+window.DATOS = __DATOS__;
+</script>
+<script>
+/*__APP__*/
+</script>
+</body>
+</html>

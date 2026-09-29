@@ -1,0 +1,199 @@
+"""Genera el archivo único `dist/Buscador_de_Formulas.html`.
+
+Lee la base de datos, dibuja todas las fórmulas (esquelética y
+semidesarrollada), y las empaqueta junto con el buscador, el parser y la
+librería de dibujo en un solo HTML que funciona sin internet.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RAIZ / "src"))
+
+import catalogo  # noqa: E402
+from dibujo_condensada import svg_condensada  # noqa: E402
+from dibujo_esqueleto import svg_condensado_anillo, svg_esqueleto  # noqa: E402
+from rdkit import Chem, RDLogger  # noqa: E402
+from rdkit.Chem import rdMolDescriptors  # noqa: E402
+
+RDLogger.DisableLog("rdApp.*")
+
+PLANTILLA = RAIZ / "src" / "plantilla"
+DIST = RAIZ / "dist"
+SALIDA = DIST / "Buscador_de_Formulas.html"
+
+# Las fichas genéricas (cetona R-CO-R'...) llevan etiquetas R en vez de línea
+# ondulada; los sustituyentes (vinilo, fenilo...) llevan el punto de unión.
+FAMILIAS_CON_R = {"grupos funcionales", "conceptos"}
+
+
+def formula_molecular(smiles: str) -> str:
+    """Fórmula molecular. Vacía para las fichas genéricas (llevan comodines)."""
+    if "*" in smiles:
+        return ""
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return ""
+    return rdMolDescriptors.CalcMolFormula(mol)
+
+
+def es_anillo(smiles: str) -> bool:
+    mol = Chem.MolFromSmiles(smiles)
+    return bool(mol and mol.GetRingInfo().NumRings() > 0)
+
+
+def tiene_nitrogeno(smiles: str) -> bool:
+    """True si hay algún nitrógeno con par libre (los dos puntitos)."""
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return False
+    return any(
+        a.GetAtomicNum() == 7
+        and a.GetFormalCharge() == 0
+        and all(b.GetBondType() == Chem.BondType.SINGLE for b in a.GetBonds())
+        for a in mol.GetAtoms()
+    )
+
+
+def tiene_aromatico(smiles: str) -> bool:
+    """True si hay algún anillo aromático (se puede dibujar con círculo)."""
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return False
+    return any(
+        all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in anillo)
+        for anillo in mol.GetRingInfo().AtomRings()
+    )
+
+
+def dibujar(entrada: catalogo.Entrada) -> dict[str, str]:
+    """Devuelve {'esq': svg, 'con': svg, ...} para una entrada.
+
+    Si las dos vistas salen idénticas (benceno, un sustituyente sencillo…),
+    se quita la segunda para no repetir el mismo dibujo. Si hay anillos
+    aromáticos se generan además las versiones con círculo ('-circ'). La
+    fórmula semidesarrollada lleva variantes para los conmutadores: '-cooh'
+    (los COOH separados en C(=O)-OH) y '-ch2' (los CH2 seguidos juntos).
+    """
+    imagenes: dict[str, str] = {}
+
+    con_r = any(f in FAMILIAS_CON_R for f in entrada.familias)
+    imagenes["esq"] = svg_esqueleto(entrada.smiles, etiquetas_dummy=con_r)
+
+    aromatico = tiene_aromatico(entrada.smiles)
+    if aromatico:
+        imagenes["esq-circ"] = svg_esqueleto(
+            entrada.smiles, etiquetas_dummy=con_r, circulos=True
+        )
+
+    if entrada.condensada:
+        for clave, cooh, ch2 in (
+            ("con", False, False),
+            ("con-cooh", True, False),
+            ("con-ch2", False, True),
+            ("con-cooh-ch2", True, True),
+        ):
+            imagenes[clave] = svg_condensada(
+                entrada.condensada, cooh_separado=cooh, ch2_agrupados=ch2
+            )
+    elif es_anillo(entrada.smiles):
+        imagenes["con"] = svg_condensado_anillo(entrada.smiles)
+        imagenes["con-cooh"] = svg_condensado_anillo(
+            entrada.smiles, cooh_separado=True
+        )
+        if aromatico:
+            imagenes["con-circ"] = svg_condensado_anillo(entrada.smiles, circulos=True)
+            imagenes["con-circ-cooh"] = svg_condensado_anillo(
+                entrada.smiles, circulos=True, cooh_separado=True
+            )
+
+    return _quitar_repetidas(imagenes)
+
+
+def _quitar_repetidas(imagenes: dict[str, str]) -> dict[str, str]:
+    """Deja una sola copia de cada dibujo, con el nombre más simple.
+
+    Se recorre en orden (esq, con, variantes, circulares): si un dibujo ya
+    había salido, se descarta. Así el benceno no repite la vista «con» y una
+    fórmula sin COOH no lleva la variante «con-cooh» (sería idéntica).
+    """
+    vistos: set[str] = set()
+    salida: dict[str, str] = {}
+    for clave, svg in imagenes.items():
+        if not svg or svg in vistos:
+            continue
+        vistos.add(svg)
+        salida[clave] = svg
+    return salida
+
+
+def main() -> int:
+    entradas = catalogo.cargar()
+    problemas = catalogo.validar(entradas)
+    if problemas:
+        print("La base de datos tiene problemas:")
+        for p in problemas:
+            print("  -", p)
+        return 1
+
+    bloques_imagenes: list[str] = []
+    datos: list[dict] = []
+
+    for e in entradas:
+        imagenes = dibujar(e)
+        for tipo, svg in imagenes.items():
+            bloques_imagenes.append(
+                f'<div class="grafico" id="img-{tipo}-{e.id}" hidden>{svg}</div>'
+            )
+        datos.append({
+            "id": e.id,
+            "nombre": e.nombre,
+            "nombres": e.todos_los_nombres,
+            "alias": e.alias,
+            "familias": e.familias,
+            "tipo": e.tipo,
+            "formula": formula_molecular(e.smiles),
+            "notas": e.notas,
+            "condensada_texto": e.condensada,
+            "circulos": tiene_aromatico(e.smiles),
+            "puntos": tiene_nitrogeno(e.smiles),
+            "cooh": "con-cooh" in imagenes or "con-circ-cooh" in imagenes,
+            "ch2": "con-ch2" in imagenes or "con-cooh-ch2" in imagenes,
+        })
+
+    familias = [f for f in catalogo.FAMILIAS if any(f in d["familias"] for d in datos)]
+
+    html = (PLANTILLA / "app.html").read_text(encoding="utf-8")
+    html = html.replace("/*__CSS__*/", (PLANTILLA / "app.css").read_text(encoding="utf-8"))
+    html = html.replace("__IMAGENES__", "\n".join(bloques_imagenes))
+    html = html.replace(
+        "/*__SMILESDRAWER__*/",
+        (PLANTILLA / "smiles-drawer.min.js").read_text(encoding="utf-8"),
+    )
+    html = html.replace("/*__PARSER__*/", (PLANTILLA / "parser.js").read_text(encoding="utf-8"))
+    html = html.replace("/*__APP__*/", (PLANTILLA / "app.js").read_text(encoding="utf-8"))
+    html = html.replace(
+        "__DATOS__",
+        json.dumps(
+            {"entradas": datos, "familias": familias},
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ),
+    )
+
+    DIST.mkdir(exist_ok=True)
+    SALIDA.write_text(html, encoding="utf-8")
+
+    kb = SALIDA.stat().st_size / 1024
+    print(f"Generado: {SALIDA}")
+    print(f"  entradas: {len(datos)}   imágenes: {len(bloques_imagenes)}")
+    print(f"  tamaño: {kb:,.0f} KB")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

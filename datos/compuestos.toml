@@ -1,0 +1,1377 @@
+# ============================================================================
+#  Buscador de Fórmulas — base de datos
+# ============================================================================
+#  Para añadir un compuesto nuevo, copia un bloque [[compuesto]] (o [[ficha]])
+#  y rellena los campos. Después hay que regenerar el HTML con generar.sh.
+#
+#  Campos:
+#    id         = identificador único, sin espacios ni acentos
+#    nombre     = nombre principal (el que se muestra y ordena)
+#    alias      = otras formas de nombrarlo (todas se pueden buscar)
+#    familia    = para el filtro por familia
+#                 (si sale en varias páginas: familias = ["éteres", "aromáticos"])
+#    smiles     = estructura química en formato SMILES
+#    condensada = fórmula semidesarrollada (formato explicado abajo)
+#    notas      = aclaraciones que se muestran en la ficha
+#
+#  Formato de "condensada":
+#    grupos:  CH3, CH2, CH, C, O, OH, F, Cl, Br, I, N, NH2, CHO, COOH,
+#             NO2, OCH3, OC2H5, Ph, R
+#    enlaces: - (simple), = (doble), # (triple)
+#    rama vertical arriba: { ... }     rama vertical abajo: [ ... ]
+#    ejemplo: CH3-C{=O}-CH2-CH3   ->   CH3-C(=O)-CH2-CH3 con el O arriba
+#    Si se deja vacío, se usa la vista de anillo (RDKit).
+#
+#  Los puntos de unión de las fichas se escriben con "*" en el SMILES.
+# ============================================================================
+
+[meta]
+version = 1
+actualizado = "2026-09-23"
+
+# ---------------------------------------------------------------------------
+#  ALCANOS
+# ---------------------------------------------------------------------------
+
+[[compuesto]]
+id = "4-ciclopropil-3-metiloctano"
+nombre = "4-ciclopropil-3-metiloctano"
+alias = []
+familia = "alcanos"
+smiles = "CCC(C)C(C1CC1)CCCC"
+condensada = ""
+notas = "Es la molécula del dibujo de ejemplo 2."
+
+[[compuesto]]
+id = "1-etil-2-metilciclobutano"
+nombre = "1-etil-2-metilciclobutano"
+alias = []
+familia = "alcanos"
+smiles = "CCC1CCC1C"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "1,1,3-trimetilciclopentano"
+nombre = "1,1,3-trimetilciclopentano"
+alias = []
+familia = "alcanos"
+smiles = "CC1(C)CC(C)CC1"
+condensada = ""
+notas = "La imagen lo dibuja con el tercer metilo en un carbono vecino al 1 (sería el 1,1,2-trimetilciclopentano); la estructura es la del nombre."
+
+# ---------------------------------------------------------------------------
+#  ALQUENOS
+# ---------------------------------------------------------------------------
+
+[[compuesto]]
+id = "eteno"
+nombre = "eteno"
+alias = ["etileno"]
+familia = "alquenos"
+smiles = "C=C"
+condensada = "CH2=CH2"
+notas = "CnH₂n"
+
+[[compuesto]]
+id = "propeno"
+nombre = "propeno"
+alias = ["propileno"]
+familia = "alquenos"
+smiles = "C=CC"
+condensada = "CH2=CH-CH3"
+notas = ""
+
+[[compuesto]]
+id = "1-buteno"
+nombre = "1-buteno"
+alias = ["but-1-eno"]
+familia = "alquenos"
+smiles = "C=CCC"
+condensada = "CH2=CH-CH2-CH3"
+notas = ""
+
+[[compuesto]]
+id = "2-buteno"
+nombre = "2-buteno"
+alias = ["but-2-eno"]
+familia = "alquenos"
+smiles = "CC=CC"
+condensada = "CH3-CH=CH-CH3"
+notas = ""
+
+[[compuesto]]
+id = "1,3-butadieno"
+nombre = "1,3-butadieno"
+alias = ["buta-1,3-dieno"]
+familia = "alquenos"
+smiles = "C=CC=C"
+condensada = "CH2=CH-CH=CH2"
+notas = "Dieno: dos dobles enlaces C=C."
+
+[[compuesto]]
+id = "1,3,5-hexatrieno"
+nombre = "1,3,5-hexatrieno"
+alias = ["hexa-1,3,5-trieno"]
+familia = "alquenos"
+smiles = "C=CC=CC=C"
+condensada = "CH2=CH-CH=CH-CH=CH2"
+notas = "Los apuntes dibujan esta fórmula (6 carbonos) pero escriben al lado «1,3,5-heptatrieno»."
+
+[[compuesto]]
+id = "1,3,5-heptatrieno"
+nombre = "1,3,5-heptatrieno"
+alias = ["hepta-1,3,5-trieno"]
+familia = "alquenos"
+smiles = "CC=CC=CC=C"
+condensada = "CH3-CH=CH-CH=CH-CH=CH2"
+notas = "Estructura correcta del nombre escrito en los apuntes. El dibujo que hay al lado tiene 6 carbonos (1,3,5-hexatrieno)."
+
+[[compuesto]]
+id = "2-metil-2-buteno"
+nombre = "2-metil-2-buteno"
+alias = ["2-metilbut-2-eno"]
+familia = "alquenos"
+smiles = "CC=C(C)C"
+condensada = "CH3-C[CH3]=CH-CH3"
+notas = ""
+
+[[compuesto]]
+id = "3-metil-1-buteno"
+nombre = "3-metil-1-buteno"
+alias = ["3-metilbut-1-eno"]
+familia = "alquenos"
+smiles = "C=CC(C)C"
+condensada = "CH2=CH-CH[CH3]-CH3"
+notas = ""
+
+[[compuesto]]
+id = "3,6-dimetil-2-hepteno"
+nombre = "3,6-dimetil-2-hepteno"
+alias = ["3,6-dimetilhept-2-eno"]
+familia = "alquenos"
+smiles = "CC=C(C)CCC(C)C"
+condensada = "CH3-CH=C[CH3]-CH2-CH2-CH[CH3]-CH3"
+notas = ""
+
+[[compuesto]]
+id = "3-propil-1-hepteno"
+nombre = "3-propil-1-hepteno"
+alias = ["3-propilhept-1-eno"]
+familia = "alquenos"
+smiles = "C=CC(CCC)CCCC"
+condensada = "CH2=CH-CH{CH2-CH2-CH3}-CH2-CH2-CH2-CH3"
+notas = "El dibujo de los apuntes es esquemático; la estructura es la del nombre."
+
+[[compuesto]]
+id = "ciclohexeno"
+nombre = "ciclohexeno"
+alias = ["ciclohex-1-eno"]
+familia = "alquenos"
+smiles = "C1=CCCCC1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "1-metilciclopenteno"
+nombre = "1-metilciclopenteno"
+alias = ["1-metilciclopent-1-eno"]
+familia = "alquenos"
+smiles = "CC1=CCCC1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "2-etil-1,3-ciclohexadieno"
+nombre = "2-etil-1,3-ciclohexadieno"
+alias = ["2-etilciclohexa-1,3-dieno"]
+familia = "alquenos"
+smiles = "C1=C(CC)C=CCC1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "7-bromo-1,3,5-cicloheptatrieno"
+nombre = "7-bromo-1,3,5-cicloheptatrieno"
+alias = ["7-bromociclohepta-1,3,5-trieno"]
+familia = "alquenos"
+smiles = "BrC1C=CC=CC=C1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "2-fenil-1,3-ciclopentadieno"
+nombre = "2-fenil-1,3-ciclopentadieno"
+alias = ["2-fenilciclopenta-1,3-dieno"]
+familia = "alquenos"
+smiles = "C1=C(c2ccccc2)C=CC1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "vinilbenceno"
+nombre = "vinilbenceno"
+alias = ["estireno", "feniletileno"]
+familia = "aromáticos"
+smiles = "C=Cc1ccccc1"
+condensada = ""
+notas = "Aparece en la página de alquenos y en la de aromáticos."
+
+# ---------------------------------------------------------------------------
+#  ALQUINOS
+# ---------------------------------------------------------------------------
+
+[[compuesto]]
+id = "etino"
+nombre = "etino"
+alias = ["acetileno"]
+familia = "alquinos"
+smiles = "C#C"
+condensada = "CH#CH"
+notas = "CnH₂n₋₂"
+
+[[compuesto]]
+id = "propino"
+nombre = "propino"
+alias = ["metilacetileno"]
+familia = "alquinos"
+smiles = "CC#C"
+condensada = "CH3-C#CH"
+notas = ""
+
+[[compuesto]]
+id = "2-butino"
+nombre = "2-butino"
+alias = ["but-2-ino", "dimetilacetileno"]
+familia = "alquinos"
+smiles = "CC#CC"
+condensada = "CH3-C#C-CH3"
+notas = ""
+
+[[compuesto]]
+id = "6-bromo-2-metilhept-3-ino"
+nombre = "6-bromo-2-metilhept-3-ino"
+alias = ["6-bromo-2-metilheptino"]
+familia = "alquinos"
+smiles = "CC(C)C#CCC(Br)C"
+condensada = "CH3-CH[CH3]-C#C-CH2-CH{Br}-CH3"
+notas = "En los apuntes figura como «6-bromo-2-metilheptino», sin el localizador del triple enlace."
+
+[[compuesto]]
+id = "ciclobutino"
+nombre = "ciclobutino"
+alias = ["ciclobut-1-ino"]
+familia = "alquinos"
+smiles = "C1#CCC1"
+condensada = ""
+notas = ""
+
+# ---------------------------------------------------------------------------
+#  AROMÁTICOS
+# ---------------------------------------------------------------------------
+
+[[compuesto]]
+id = "benceno"
+nombre = "benceno"
+alias = []
+familia = "aromáticos"
+smiles = "c1ccccc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "metilbenceno"
+nombre = "metilbenceno"
+alias = ["tolueno"]
+familia = "aromáticos"
+smiles = "Cc1ccccc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "bencenol"
+nombre = "bencenol"
+alias = ["fenol", "hidroxibenceno"]
+familia = "aromáticos"
+smiles = "Oc1ccccc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "bencenamina"
+nombre = "bencenamina"
+alias = ["anilina", "fenilamina", "aminobenceno"]
+familia = "aromáticos"
+smiles = "Nc1ccccc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "metoxibenceno"
+nombre = "metoxibenceno"
+alias = ["anisol", "fenil metil éter", "éter fenilmetílico"]
+familias = ["aromáticos", "éteres"]
+smiles = "COc1ccccc1"
+condensada = ""
+notas = "Éter no simétrico de los apuntes: aparece en la página de éteres y en la de aromáticos."
+
+[[compuesto]]
+id = "etinilbenceno"
+nombre = "etinilbenceno"
+alias = ["fenilacetileno", "etilnilbenceno"]
+familia = "aromáticos"
+smiles = "C#Cc1ccccc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "tert-butilbenceno"
+nombre = "tert-butilbenceno"
+alias = ["terc-butilbenceno", "2-metil-2-fenilpropano"]
+familia = "aromáticos"
+smiles = "CC(C)(C)c1ccccc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "1,2-diclorobenceno"
+nombre = "1,2-diclorobenceno"
+alias = ["o-diclorobenceno", "orto-diclorobenceno"]
+familia = "aromáticos"
+smiles = "Clc1ccccc1Cl"
+condensada = ""
+notas = "Orto = 1,2 · meta = 1,3 · para = 1,4"
+
+[[compuesto]]
+id = "1,3,5-trinitrobenceno"
+nombre = "1,3,5-trinitrobenceno"
+alias = ["trinitrobenceno"]
+familia = "aromáticos"
+smiles = "O=[N+]([O-])c1cc([N+](=O)[O-])cc([N+](=O)[O-])c1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "1,3-dimetilbenceno"
+nombre = "1,3-dimetilbenceno"
+alias = ["m-xileno", "meta-xileno", "meta-dimetilbenceno", "meta-metiltolueno"]
+familia = "aromáticos"
+smiles = "Cc1cccc(C)c1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "1,3,5-trimetilbenceno"
+nombre = "1,3,5-trimetilbenceno"
+alias = ["mesitileno"]
+familia = "aromáticos"
+smiles = "Cc1cc(C)cc(C)c1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "4-nitrofenol"
+nombre = "4-nitrofenol"
+alias = ["p-nitrofenol", "para-nitrofenol"]
+familia = "aromáticos"
+smiles = "Oc1ccc([N+](=O)[O-])cc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "2,4-dinitrofenol"
+nombre = "2,4-dinitrofenol"
+alias = []
+familia = "aromáticos"
+smiles = "O=[N+]([O-])c1ccc(O)c([N+](=O)[O-])c1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "acetofenona"
+nombre = "acetofenona"
+alias = ["metil fenil cetona", "1-feniletanona", "fenilmetilcetona"]
+familia = "cetonas"
+smiles = "CC(=O)c1ccccc1"
+condensada = ""
+notas = "Cetona aromática."
+
+[[compuesto]]
+id = "benzaldehido"
+nombre = "benzaldehído"
+alias = ["fenilmetanal", "aldehído benzoico"]
+familia = "aldehídos"
+smiles = "O=Cc1ccccc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "acido-benzoico"
+nombre = "ácido benzoico"
+alias = ["ácido bencenoico"]
+familia = "ácidos"
+smiles = "OC(=O)c1ccccc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "acido-3-cloroperoxibenzoico"
+nombre = "ácido 3-cloroperoxibenzoico"
+alias = ["ácido m-cloroperoxibenzoico", "mCPBA", "ácido metacloroperoxibenzoico"]
+familia = "ácidos"
+smiles = "OOC(=O)c1cccc(Cl)c1"
+condensada = ""
+notas = "Es el mCPBA: lleva un oxígeno extra de peróxido (-COOOH), señalado en los apuntes."
+
+[[compuesto]]
+id = "acido-3,5-dinitrobenzoico"
+nombre = "ácido 3,5-dinitrobenzoico"
+alias = ["ácido 3,5-dinitrobenzoico"]
+familia = "ácidos"
+smiles = "OC(=O)c1cc([N+](=O)[O-])cc([N+](=O)[O-])c1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "acido-3-formilbenzoico"
+nombre = "ácido 3-formilbenzoico"
+alias = ["ácido m-formilbenzoico"]
+familia = "ácidos"
+smiles = "O=Cc1cccc(C(=O)O)c1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "acido-3,5-dihidroxibenzoico"
+nombre = "ácido 3,5-dihidroxibenzoico"
+alias = []
+familia = "ácidos"
+smiles = "OC(=O)c1cc(O)cc(O)c1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "1-fenil-2-butino"
+nombre = "1-fenil-2-butino"
+alias = ["1-fenilbut-2-ino", "fenilmetilacetileno"]
+familia = "alquinos"
+smiles = "CC#CCc1ccccc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "eter-difenilico"
+nombre = "éter difenílico"
+alias = ["fenoxibenceno", "éter fenílico", "difenil éter"]
+familia = "éteres"
+smiles = "c1ccc(Oc2ccccc2)cc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "2-feniletanol"
+nombre = "2-feniletanol"
+alias = ["alcohol feniletílico", "feniletanol"]
+familia = "alcoholes"
+smiles = "OCCc1ccccc1"
+condensada = ""
+notas = ""
+
+# ---------------------------------------------------------------------------
+#  ALCOHOLES
+# ---------------------------------------------------------------------------
+
+[[compuesto]]
+id = "1-bromo-3,3-dimetilbutan-2-ol"
+nombre = "1-bromo-3,3-dimetilbutan-2-ol"
+alias = ["1-bromo-3,3-dimetilbutanol"]
+familia = "alcoholes"
+smiles = "BrCC(O)C(C)(C)C"
+condensada = "CH3-C{CH3}[CH3]-CH{OH}-CH2-Br"
+notas = "En los apuntes figura como «1-bromo-3,3-dimetilbutanol», sin el localizador del OH."
+
+[[compuesto]]
+id = "2-bromociclohexanol"
+nombre = "2-bromociclohexanol"
+alias = ["2-bromociclohexan-1-ol"]
+familia = "alcoholes"
+smiles = "OC1CCCCC1Br"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "1-etilciclopropanol"
+nombre = "1-etilciclopropanol"
+alias = ["1-etilciclopropan-1-ol"]
+familia = "alcoholes"
+smiles = "CCC1(O)CC1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "4-cloro-3-buten-2-ol"
+nombre = "4-cloro-3-buten-2-ol"
+alias = ["4-clorobut-3-en-2-ol"]
+familia = "alcoholes"
+smiles = "CC(O)C=CCl"
+condensada = "CH3-CH[OH]-CH=CH-Cl"
+notas = ""
+
+[[compuesto]]
+id = "2-ciclohexen-1-ol"
+nombre = "2-ciclohexen-1-ol"
+alias = ["2-ciclohexenol", "ciclohex-2-en-1-ol"]
+familia = "alcoholes"
+smiles = "OC1CCCC=C1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "2-penten-1-ol"
+nombre = "2-penten-1-ol"
+alias = ["pent-2-en-1-ol"]
+familia = "alcoholes"
+smiles = "OCC=CCC"
+condensada = "HO-CH2-CH=CH-CH2-CH3"
+notas = "Alcohol primario."
+
+[[compuesto]]
+id = "2-penten-3-ol"
+nombre = "2-penten-3-ol"
+alias = ["pent-2-en-3-ol"]
+familia = "alcoholes"
+smiles = "CCC(O)=CC"
+condensada = "CH3-CH2-C[OH]=CH-CH3"
+notas = "Alcohol secundario."
+
+# ---------------------------------------------------------------------------
+#  ÉTERES
+# ---------------------------------------------------------------------------
+
+[[compuesto]]
+id = "eter-dietilico"
+nombre = "éter dietílico"
+alias = ["etoxietano", "éter etílico", "dietil éter"]
+familia = "éteres"
+smiles = "CCOCC"
+condensada = "CH3-CH2-O-CH2-CH3"
+notas = "Éter simétrico."
+
+[[compuesto]]
+id = "metoxietano"
+nombre = "metoxietano"
+alias = ["éter etil metílico", "etil metil éter"]
+familia = "éteres"
+smiles = "COCC"
+condensada = "CH3-O-CH2-CH3"
+notas = ""
+
+[[compuesto]]
+id = "clorometoximetano"
+nombre = "(clorometoxi)metano"
+alias = ["clorometil metil éter", "clorometoximetano"]
+familia = "éteres"
+smiles = "ClCOC"
+condensada = "Cl-CH2-O-CH3"
+notas = ""
+
+[[compuesto]]
+id = "3-etoxi-1,1-dimetilciclohexano"
+nombre = "3-etoxi-1,1-dimetilciclohexano"
+alias = ["3-etoxi-1,1-dimetilciclohexano"]
+familia = "éteres"
+smiles = "CCOC1CCCC(C)(C)C1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "1-cloro-2-metoxiciclobutano"
+nombre = "1-cloro-2-metoxiciclobutano"
+alias = ["1-cloro-2-metoxiciclobutano"]
+familia = "éteres"
+smiles = "COC1CCC1Cl"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "2-etoxietanol"
+nombre = "2-etoxietanol"
+alias = ["éter monoetílico del etilenglicol"]
+familia = "éteres"
+smiles = "CCOCCO"
+condensada = "HO-CH2-CH2-O-CH2-CH3"
+notas = ""
+
+[[compuesto]]
+id = "tetrahidrofurano"
+nombre = "tetrahidrofurano"
+alias = ["THF", "oxolano"]
+familia = "éteres"
+smiles = "C1CCOC1"
+condensada = ""
+notas = "Éter cíclico: anillo de 5 eslabones con el oxígeno. No aparece en los apuntes; se añade a petición."
+
+# ---------------------------------------------------------------------------
+#  CETONAS
+# ---------------------------------------------------------------------------
+
+[[compuesto]]
+id = "butan-2-ona"
+nombre = "butan-2-ona"
+alias = ["2-butanona", "metil etil cetona", "etil metil cetona"]
+familia = "cetonas"
+smiles = "CCC(C)=O"
+condensada = "CH3-C[=O]-CH2-CH3"
+notas = ""
+
+[[compuesto]]
+id = "2,4-dimetilpentan-3-ona"
+nombre = "2,4-dimetilpentan-3-ona"
+alias = ["2,4-dimetil-3-pentanona", "diisopropil cetona"]
+familia = "cetonas"
+smiles = "CC(C)C(=O)C(C)C"
+condensada = "CH3-CH[CH3]-C[=O]-CH[CH3]-CH3"
+notas = ""
+
+[[compuesto]]
+id = "1-fenilpropan-1-ona"
+nombre = "1-fenilpropan-1-ona"
+alias = ["1-fenil-1-propanona", "propiofenona", "fenil etil cetona"]
+familia = "cetonas"
+smiles = "CCC(=O)c1ccccc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "3,4-dimetilpentan-2-ona"
+nombre = "3,4-dimetilpentan-2-ona"
+alias = ["3,4-dimetil-2-pentanona"]
+familia = "cetonas"
+smiles = "CC(=O)C(C)C(C)C"
+condensada = "CH3-C[=O]-CH[CH3]-CH[CH3]-CH3"
+notas = ""
+
+[[compuesto]]
+id = "4,4-dimetilpentan-2-ona"
+nombre = "4,4-dimetilpentan-2-ona"
+alias = ["4,4-dimetil-2-pentanona", "metil neopentil cetona"]
+familia = "cetonas"
+smiles = "CC(=O)CC(C)(C)C"
+condensada = "CH3-C[=O]-CH2-C{CH3}[CH3]-CH3"
+notas = ""
+
+[[compuesto]]
+id = "ciclopentanona"
+nombre = "ciclopentanona"
+alias = ["ciclopentan-1-ona"]
+familia = "cetonas"
+smiles = "O=C1CCCC1"
+condensada = ""
+notas = "Cetona cíclica: es el ejemplo general que aparece en los apuntes."
+
+[[compuesto]]
+id = "ciclohexanona"
+nombre = "ciclohexanona"
+alias = ["ciclohexan-1-ona"]
+familia = "cetonas"
+smiles = "O=C1CCCCC1"
+condensada = ""
+notas = "No aparece en los apuntes; se añade como pareja de la ciclopentanona."
+
+[[compuesto]]
+id = "3-metilciclopentanona"
+nombre = "3-metilciclopentanona"
+alias = ["3-metilciclopentan-1-ona"]
+familia = "cetonas"
+smiles = "CC1CCC(=O)C1"
+condensada = ""
+notas = "Cetona cíclica."
+
+[[compuesto]]
+id = "2-ciclohexenona"
+nombre = "2-ciclohexenona"
+alias = ["2-ciclohexen-1-ona", "ciclohex-2-en-1-ona"]
+familia = "cetonas"
+smiles = "O=C1C=CCCC1"
+condensada = ""
+notas = "Cetona cíclica con doble enlace."
+
+[[compuesto]]
+id = "4-hidroxi-4-metilpentan-2-ona"
+nombre = "4-hidroxi-4-metilpentan-2-ona"
+alias = ["4-hidroxi-4-metil-2-pentanona", "diacetona alcohol"]
+familia = "cetonas"
+smiles = "CC(=O)CC(C)(C)O"
+condensada = "CH3-C[=O]-CH2-C{OH}[CH3]-CH3"
+notas = ""
+
+# ---------------------------------------------------------------------------
+#  ALDEHÍDOS
+# ---------------------------------------------------------------------------
+
+[[compuesto]]
+id = "4-bromo-3-metilheptanal"
+nombre = "4-bromo-3-metilheptanal"
+alias = ["4-bromo-3-metilheptan-1-al"]
+familia = "aldehídos"
+smiles = "CCCC(Br)C(C)CC=O"
+condensada = "CH3-CH2-CH2-CH[Br]-CH[CH3]-CH2-C[=O]-H"
+notas = ""
+
+[[compuesto]]
+id = "3-hidroxibutanal"
+nombre = "3-hidroxibutanal"
+alias = ["3-hidroxibutan-1-al", "aldol"]
+familia = "aldehídos"
+smiles = "CC(O)CC=O"
+condensada = "CH3-CH{OH}-CH2-C{=O}-H"
+notas = ""
+
+[[compuesto]]
+id = "2-pentenal"
+nombre = "2-pentenal"
+alias = ["pent-2-enal"]
+familia = "aldehídos"
+smiles = "CCC=CC=O"
+condensada = "CH3-CH2-CH=CH-C{=O}-H"
+notas = ""
+
+[[compuesto]]
+id = "3-oxopentanal"
+nombre = "3-oxopentanal"
+alias = ["3-oxopentan-1-al"]
+familia = "aldehídos"
+smiles = "CCC(=O)CC=O"
+condensada = "CH3-CH2-C[=O]-CH2-C[=O]-H"
+notas = ""
+
+[[compuesto]]
+id = "ciclohexanocarbaldehido"
+nombre = "ciclohexanocarbaldehído"
+alias = ["ciclohexano con aldehído", "ciclohexanocarboxaldehído", "ciclohexilmetanal"]
+familia = "aldehídos"
+smiles = "O=CC1CCCCC1"
+condensada = ""
+notas = "En los apuntes aparece como «ciclohexano con butaldheído»."
+
+# ---------------------------------------------------------------------------
+#  ÁCIDOS
+# ---------------------------------------------------------------------------
+
+[[compuesto]]
+id = "acido-3-oxobutanoico"
+nombre = "ácido 3-oxobutanoico"
+alias = ["ácido acetoacético", "ácido 3-oxobutírico"]
+familia = "ácidos"
+smiles = "CC(=O)CC(=O)O"
+condensada = "CH3-C{=O}-CH2-COOH"
+notas = ""
+
+[[compuesto]]
+id = "acido-metanoico"
+nombre = "ácido metanoico"
+alias = ["ácido fórmico"]
+familia = "ácidos"
+smiles = "OC=O"
+condensada = "H-COOH"
+notas = ""
+
+[[compuesto]]
+id = "acido-propanoico"
+nombre = "ácido propanoico"
+alias = ["ácido propiónico"]
+familia = "ácidos"
+smiles = "CCC(=O)O"
+condensada = "CH3-CH2-COOH"
+notas = ""
+
+[[compuesto]]
+id = "acido-2-cloropropanoico"
+nombre = "ácido 2-cloropropanoico"
+alias = ["ácido α-cloropropanoico"]
+familia = "ácidos"
+smiles = "CC(Cl)C(=O)O"
+condensada = "CH3-CH[Cl]-COOH"
+notas = ""
+
+[[compuesto]]
+id = "acido-3-metilbutanoico"
+nombre = "ácido 3-metilbutanoico"
+alias = ["ácido β-metilbutanoico"]
+familia = "ácidos"
+smiles = "CC(C)CC(=O)O"
+condensada = "CH3-CH[CH3]-CH2-COOH"
+notas = ""
+
+[[compuesto]]
+id = "acido-2-ciclohexilpropanoico"
+nombre = "ácido 2-ciclohexilpropanoico"
+alias = []
+familia = "ácidos"
+smiles = "CC(C(=O)O)C1CCCCC1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "acido-3-oxo-2-propilbutanoico"
+nombre = "ácido 3-oxo-2-propilbutanoico"
+alias = []
+familia = "ácidos"
+smiles = "CCCC(C(C)=O)C(=O)O"
+condensada = "CH3-C[=O]-CH[CH2-CH2-CH3]-COOH"
+notas = "En los apuntes: «ácido 3-oxo-2-(propil)butanoico»."
+
+[[compuesto]]
+id = "acido-4-aminobutanoico"
+nombre = "ácido 4-aminobutanoico"
+alias = ["ácido γ-aminobutanoico", "GABA"]
+familias = ["ácidos", "aminas"]
+smiles = "NCCCC(=O)O"
+condensada = "NH2-CH2-CH2-CH2-COOH"
+notas = "Aparece en la página de aminas y en la de ácidos."
+
+[[compuesto]]
+id = "acido-3-fenilpentanoico"
+nombre = "ácido 3-fenilpentanoico"
+alias = []
+familia = "ácidos"
+smiles = "CCC(CC(=O)O)c1ccccc1"
+condensada = "CH3-CH2-CH[Ph]-CH2-COOH"
+notas = "En los apuntes, el fenilo se escribe «Ph»."
+
+[[compuesto]]
+id = "acido-etanodioico"
+nombre = "ácido etanodioico"
+alias = ["ácido oxálico"]
+familia = "ácidos"
+smiles = "O=C(O)C(=O)O"
+condensada = "HO-C[=O]-C[=O]-OH"
+notas = ""
+
+[[compuesto]]
+id = "acido-pentanodioico"
+nombre = "ácido pentanodioico"
+alias = ["ácido glutárico"]
+familia = "ácidos"
+smiles = "O=C(O)CCCC(=O)O"
+condensada = "HOOC-CH2-CH2-CH2-COOH"
+notas = "En los apuntes se escribe HOOC-(CH2)3-COOH."
+
+[[compuesto]]
+id = "acido-ftalico"
+nombre = "ácido ftálico"
+alias = ["ácido benceno-1,2-dicarboxílico"]
+familia = "ácidos"
+smiles = "O=C(O)c1ccccc1C(=O)O"
+condensada = ""
+notas = "Los apuntes lo nombran junto al dibujo del ácido m-ftálico (que es el de 1,3)."
+
+[[compuesto]]
+id = "acido-isoftalico"
+nombre = "ácido isoftálico"
+alias = ["ácido m-ftálico", "ácido benceno-1,3-dicarboxílico"]
+familia = "ácidos"
+smiles = "O=C(O)c1cccc(C(=O)O)c1"
+condensada = ""
+notas = "Es el dibujo de los apuntes (dos -COOH en 1 y 3), que allí se escribe «ácido m-ftálico»."
+
+[[compuesto]]
+id = "bencenoato"
+nombre = "bencenoato"
+alias = ["benzoato", "ion benzoato", "anión benzoato", "ácido benzoato"]
+familia = "ácidos"
+smiles = "[O-]C(=O)c1ccccc1"
+condensada = ""
+notas = "En los apuntes: «ácido benzoato», con la H tachada (le falta el H): es el anión del ácido benzoico."
+
+[[compuesto]]
+id = "acido-3-bromopentanodioico"
+nombre = "ácido 3-bromopentanodioico"
+alias = []
+familia = "ácidos"
+smiles = "O=C(O)CC(Br)CC(=O)O"
+condensada = "HOOC-CH2-CH[Br]-CH2-COOH"
+notas = ""
+
+[[compuesto]]
+id = "acido-4-metilhex-3-enoico"
+nombre = "ácido 4-metilhex-3-enoico"
+alias = []
+familia = "ácidos"
+smiles = "CCC(C)=CCC(=O)O"
+condensada = "CH3-CH2-C[CH3]=CH-CH2-COOH"
+notas = ""
+
+# ---------------------------------------------------------------------------
+#  AMINAS
+# ---------------------------------------------------------------------------
+
+[[compuesto]]
+id = "ciclohexilamina"
+nombre = "ciclohexilamina"
+alias = ["ciclohexanamina"]
+familia = "aminas"
+smiles = "NC1CCCCC1"
+condensada = ""
+notas = "Amina primaria."
+
+[[compuesto]]
+id = "tert-butilamina"
+nombre = "tert-butilamina"
+alias = ["2-metilpropan-2-amina", "terc-butilamina"]
+familia = "aminas"
+smiles = "NC(C)(C)C"
+condensada = "CH3-C{NH2}[CH3]-CH3"
+notas = "Amina primaria."
+
+[[compuesto]]
+id = "etilamina"
+nombre = "etilamina"
+alias = ["etanamina"]
+familia = "aminas"
+smiles = "CCN"
+condensada = "CH3-CH2-NH2"
+notas = "Amina primaria."
+
+[[compuesto]]
+id = "bencilamina"
+nombre = "bencilamina"
+alias = ["fenilmetanamina"]
+familia = "aminas"
+smiles = "NCc1ccccc1"
+condensada = ""
+notas = "Amina primaria. En los apuntes aparece como el anillo con CH2NH2."
+
+[[compuesto]]
+id = "N-etilanilina"
+nombre = "N-etilanilina"
+alias = ["N-etilbencenamina"]
+familias = ["aminas", "aromáticos"]
+smiles = "CCNc1ccccc1"
+condensada = ""
+notas = "Amina secundaria."
+
+[[compuesto]]
+id = "piperidina"
+nombre = "piperidina"
+alias = []
+familia = "aminas"
+smiles = "C1CCNCC1"
+condensada = ""
+notas = "Amina cíclica (secundaria): anillo de 6 con el nitrógeno."
+
+[[compuesto]]
+id = "difenilamina"
+nombre = "difenilamina"
+alias = ["N-fenilanilina"]
+familias = ["aminas", "aromáticos"]
+smiles = "N(c1ccccc1)c1ccccc1"
+condensada = ""
+notas = "Amina secundaria."
+
+[[compuesto]]
+id = "3-aminociclopenteno"
+nombre = "3-aminociclopenteno"
+alias = ["ciclopent-2-en-1-amina"]
+familia = "aminas"
+smiles = "NC1C=CCC1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "3-aminociclohexanol"
+nombre = "3-aminociclohexanol"
+alias = ["3-aminociclohexan-1-ol"]
+familia = "aminas"
+smiles = "OC1CC(N)CCC1"
+condensada = ""
+notas = "Lleva un -OH y un -NH2."
+
+[[compuesto]]
+id = "N,N-dietilanilina"
+nombre = "N,N-dietilanilina"
+alias = ["N,N-dietilbencenamina"]
+familias = ["aminas", "aromáticos"]
+smiles = "CCN(CC)c1ccccc1"
+condensada = ""
+notas = "Amina terciaria."
+
+[[compuesto]]
+id = "dietilmetilamina"
+nombre = "dietilmetilamina"
+alias = ["N-etil-N-metiletanamina"]
+familia = "aminas"
+smiles = "CCN(C)CC"
+condensada = "CH3-CH2-N[CH3]-CH2-CH3"
+notas = "En los apuntes: (CH3CH2)2N-CH3."
+
+[[compuesto]]
+id = "ciclohexildimetilamina"
+nombre = "ciclohexildimetilamina"
+alias = ["N,N-dimetilciclohexanamina"]
+familia = "aminas"
+smiles = "CN(C)C1CCCCC1"
+condensada = ""
+notas = "Amina terciaria."
+
+[[compuesto]]
+id = "acido-4-aminobenzoico"
+nombre = "ácido 4-aminobenzoico"
+alias = ["ácido p-aminobenzoico", "PABA"]
+familias = ["aminas", "ácidos"]
+smiles = "Nc1ccc(C(=O)O)cc1"
+condensada = ""
+notas = "Lleva el -COOH y el -NH2 en para."
+
+[[compuesto]]
+id = "4-metilanilina"
+nombre = "4-metilanilina"
+alias = ["p-metilanilina", "4-metilbencenamina", "p-toluidina"]
+familias = ["aminas", "aromáticos"]
+smiles = "Cc1ccc(N)cc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "butan-2-amina"
+nombre = "butan-2-amina"
+alias = ["2-butanamina", "sec-butilamina"]
+familia = "aminas"
+smiles = "CCC(C)N"
+condensada = "CH3-CH[NH2]-CH2-CH3"
+notas = ""
+
+[[compuesto]]
+id = "3-metilbutan-1-amina"
+nombre = "3-metilbutan-1-amina"
+alias = ["3-metil-1-butanamina", "isopentilamina"]
+familia = "aminas"
+smiles = "CC(C)CCN"
+condensada = "CH3-CH[CH3]-CH2-CH2-NH2"
+notas = ""
+
+[[compuesto]]
+id = "N-metilbutan-2-amina"
+nombre = "N-metilbutan-2-amina"
+alias = ["N-metil-2-butanamina", "metil sec-butilamina"]
+familia = "aminas"
+smiles = "CCC(C)NC"
+condensada = "CH3-CH2-CH[NH-CH3]-CH3"
+notas = ""
+
+# ---------------------------------------------------------------------------
+#  ÉSTERES
+# ---------------------------------------------------------------------------
+
+[[compuesto]]
+id = "etanoato-de-etilo"
+nombre = "etanoato de etilo"
+alias = ["acetato de etilo"]
+familia = "ésteres"
+smiles = "CCOC(C)=O"
+condensada = "CH3-C[=O]-O-CH2-CH3"
+notas = "La fórmula dibujada en los apuntes es CH3-COO-CH3 (etanoato de metilo); la estructura es la del nombre."
+
+[[compuesto]]
+id = "etanoato-de-metilo"
+nombre = "etanoato de metilo"
+alias = ["acetato de metilo"]
+familia = "ésteres"
+smiles = "COC(C)=O"
+condensada = "CH3-C[=O]-O-CH3"
+notas = "Es la fórmula que aparece dibujada en los apuntes, junto a «etanoato de etilo»."
+
+[[compuesto]]
+id = "metanoato-de-isopropilo"
+nombre = "metanoato de isopropilo"
+alias = ["metanoato de 1-metiletilo", "formiato de isopropilo"]
+familia = "ésteres"
+smiles = "CC(C)OC=O"
+condensada = "CH3-CH[CH3]-O-C[=O]-H"
+notas = "En los apuntes: metanoato de isopropilo (o de 1-metiletilo)."
+
+[[compuesto]]
+id = "benzoato-de-fenilo"
+nombre = "benzoato de fenilo"
+alias = []
+familia = "ésteres"
+smiles = "O=C(Oc1ccccc1)c1ccccc1"
+condensada = ""
+notas = ""
+
+[[compuesto]]
+id = "2-feniletanoato-de-metilo"
+nombre = "2-feniletanoato de metilo"
+alias = ["fenilacetato de metilo"]
+familia = "ésteres"
+smiles = "COC(=O)Cc1ccccc1"
+condensada = ""
+notas = ""
+
+# ---------------------------------------------------------------------------
+#  AMIDAS
+# ---------------------------------------------------------------------------
+
+[[compuesto]]
+id = "N-etiletanamida"
+nombre = "N-etiletanamida"
+alias = []
+familia = "amidas"
+smiles = "CCNC(C)=O"
+condensada = "CH3-C[=O]-NH-CH2-CH3"
+notas = "Amida secundaria."
+
+[[compuesto]]
+id = "N,N-dimetilmetanamida"
+nombre = "N,N-dimetilmetanamida"
+alias = ["DMF"]
+familia = "amidas"
+smiles = "CN(C)C=O"
+condensada = "H-C[=O]-N[CH3]-CH3"
+notas = "Amida terciaria."
+
+[[compuesto]]
+id = "N-etil-N,2-dimetilpropanamida"
+nombre = "N-etil-N,2-dimetilpropanamida"
+alias = []
+familia = "amidas"
+smiles = "CCN(C)C(=O)C(C)C"
+condensada = "CH3-CH[CH3]-C[=O]-N[CH3]-CH2-CH3"
+notas = "Amida terciaria."
+
+[[compuesto]]
+id = "ciclopentanocarboxamida"
+nombre = "ciclopentanocarboxamida"
+alias = []
+familia = "amidas"
+smiles = "NC(=O)C1CCCC1"
+condensada = ""
+notas = "En los apuntes, el anillo con -C(=O)-NH2."
+
+# ---------------------------------------------------------------------------
+#  FICHAS: SUSTITUYENTES
+# ---------------------------------------------------------------------------
+
+[[ficha]]
+id = "vinilo"
+nombre = "vinilo"
+alias = ["etenil", "grupo vinilo", "vinil"]
+familia = "sustituyentes"
+smiles = "*C=C"
+condensada = "-CH=CH2"
+notas = "Sustituyente. Se une a la cadena por el punto de unión (línea ondulada)."
+
+[[ficha]]
+id = "2-propenilo"
+nombre = "2-propenilo"
+alias = ["alilo", "grupo alilo", "propenilo"]
+familia = "sustituyentes"
+smiles = "*CC=C"
+condensada = "-CH2-CH=CH2"
+notas = "Sustituyente."
+
+[[ficha]]
+id = "1-propenilo"
+nombre = "1-propenilo"
+alias = ["prop-1-enilo"]
+familia = "sustituyentes"
+smiles = "*C=CC"
+condensada = "-CH=CH-CH3"
+notas = "Sustituyente."
+
+[[ficha]]
+id = "fenilo"
+nombre = "fenilo"
+alias = ["Ph", "grupo fenilo", "fenil"]
+familia = "sustituyentes"
+smiles = "*c1ccccc1"
+condensada = ""
+notas = "Sustituyente aromático (Ph)."
+
+[[ficha]]
+id = "bencilo"
+nombre = "bencilo"
+alias = ["grupo bencilo", "bencil", "PhCH2"]
+familia = "sustituyentes"
+smiles = "*Cc1ccccc1"
+condensada = ""
+notas = "El benceno con el CH2 y el punto de unión (CH2⁻). No aparece en las fotos de los apuntes: lo añadió el profesor después."
+
+# ---------------------------------------------------------------------------
+#  FICHAS: GRUPOS FUNCIONALES
+# ---------------------------------------------------------------------------
+
+[[ficha]]
+id = "cetona"
+nombre = "cetona"
+alias = ["grupo cetona", "carbonilo"]
+familia = "grupos funcionales"
+smiles = "*C(=O)*"
+condensada = "R-C[=O]-R'"
+notas = "R-CO-R'. El grupo carbonilo (C=O) va unido a dos carbonos."
+
+[[ficha]]
+id = "aldehido"
+nombre = "aldehído"
+alias = ["grupo aldehído", "formilo"]
+familia = "grupos funcionales"
+smiles = "*C=O"
+condensada = "R-C[=O]-H"
+notas = "R-CHO. El carbonilo lleva al menos un hidrógeno."
+
+[[ficha]]
+id = "acido-carboxilico"
+nombre = "ácido carboxílico"
+alias = ["grupo carboxilo", "carboxilo"]
+familia = "grupos funcionales"
+smiles = "*C(=O)O"
+condensada = "R-C[=O]-OH"
+notas = "R-COOH."
+
+[[ficha]]
+id = "grupo-carboxilato"
+nombre = "grupo carboxilato"
+alias = ["carboxilato", "anión carboxilato"]
+familia = "grupos funcionales"
+smiles = "*C(=O)[O-]"
+condensada = "R-C[=O]-O⁻"
+notas = "R-COO⁻. Es el grupo carboxilo sin el hidrógeno (con carga negativa)."
+
+[[ficha]]
+id = "ester"
+nombre = "éster"
+alias = ["grupo éster"]
+familia = "grupos funcionales"
+smiles = "*C(=O)O*"
+condensada = "R-C[=O]-O-R'"
+notas = "R-COOR'."
+
+[[ficha]]
+id = "amida"
+nombre = "amida"
+alias = ["grupo amida", "amida primaria"]
+familia = "grupos funcionales"
+smiles = "*C(=O)N"
+condensada = "R-C[=O]-NH2"
+notas = "R-CONH₂."
+
+[[ficha]]
+id = "amida-secundaria"
+nombre = "amida secundaria"
+alias = ["grupo amida secundaria"]
+familia = "grupos funcionales"
+smiles = "*C(=O)N*"
+condensada = "R-C[=O]-NH-R'"
+notas = "La amida lleva un radical en el nitrógeno."
+
+[[ficha]]
+id = "amida-terciaria"
+nombre = "amida terciaria"
+alias = ["grupo amida terciaria"]
+familia = "grupos funcionales"
+smiles = "*C(=O)N(*)*"
+condensada = "R-C[=O]-N{R'}-R''"
+notas = "La amida lleva dos radicales en el nitrógeno."
+
+[[ficha]]
+id = "amina-primaria"
+nombre = "amina primaria"
+alias = ["grupo amino", "amina"]
+familia = "grupos funcionales"
+smiles = "*N"
+condensada = "R-NH2"
+notas = "R-NH₂. El nitrógeno va unido a un solo carbono."
+
+[[ficha]]
+id = "amina-secundaria"
+nombre = "amina secundaria"
+alias = ["grupo amino secundario"]
+familia = "grupos funcionales"
+smiles = "*N*"
+condensada = "R-NH-R'"
+notas = "R-NH-R'. El nitrógeno va unido a dos carbonos."
+
+[[ficha]]
+id = "amina-terciaria"
+nombre = "amina terciaria"
+alias = ["grupo amino terciario"]
+familia = "grupos funcionales"
+smiles = "*N(*)*"
+condensada = "R-N{R'}-R''"
+notas = "R-NR'R''. El nitrógeno va unido a tres carbonos."
+
+[[ficha]]
+id = "cloruro-de-acido"
+nombre = "cloruro de ácido"
+alias = ["haluro de ácido", "cloruro de acilo"]
+familia = "grupos funcionales"
+smiles = "*C(=O)Cl"
+condensada = "R-C[=O]-Cl"
+notas = "R-COCl."
+
+# ---------------------------------------------------------------------------
+#  FICHAS: FAMILIAS
+# ---------------------------------------------------------------------------
+
+[[ficha]]
+id = "alcano"
+nombre = "alcano"
+alias = ["hidrocarburo saturado"]
+familia = "conceptos"
+smiles = "*C"
+condensada = "R-H"
+notas = "CnH₂n₊₂. Solo enlaces simples."
+
+[[ficha]]
+id = "alqueno"
+nombre = "alqueno"
+alias = ["olefina"]
+familia = "conceptos"
+smiles = "*C=C*"
+condensada = "R-CH=CH-R'"
+notas = "CnH₂n. Tiene al menos un doble enlace C=C."
+
+[[ficha]]
+id = "alquino"
+nombre = "alquino"
+alias = ["acetilénico"]
+familia = "conceptos"
+smiles = "*C#C*"
+condensada = "R-C#C-R'"
+notas = "CnH₂n₋₂. Tiene al menos un triple enlace C≡C."
+
+[[ficha]]
+id = "alcohol"
+nombre = "alcohol"
+alias = ["grupo hidroxilo"]
+familia = "conceptos"
+smiles = "*O"
+condensada = "R-OH"
+notas = "CnH₂n₊₂O. El grupo -OH va unido a un carbono saturado."
+
+[[ficha]]
+id = "eter"
+nombre = "éter"
+alias = ["grupo alcoxi"]
+familia = "conceptos"
+smiles = "*O*"
+condensada = "R-O-R'"
+notas = "CnH₂n₊₂O. Oxígeno entre dos carbonos."
+
+[[ficha]]
+id = "dieno"
+nombre = "dieno"
+alias = ["doble enlace doble"]
+familia = "conceptos"
+smiles = "*C=CC=C*"
+condensada = "R-CH=CH-CH=CH-R'"
+notas = "Compuesto con dos dobles enlaces C=C."
+
+[[ficha]]
+id = "trieno"
+nombre = "trieno"
+alias = []
+familia = "conceptos"
+smiles = "*C=CC=CC=C*"
+condensada = "R-CH=CH-CH=CH-CH=CH-R'"
+notas = "Compuesto con tres dobles enlaces C=C."
