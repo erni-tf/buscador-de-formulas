@@ -8,5 +8,8 @@ WhatsApp Image *.jpeg
 formula_examples/
 names_and_formulas/
 
+# Documento de revisión de los apuntes (local, no se publica)
+REVISAR.md
+
 # Sistema
 .DS_Store
