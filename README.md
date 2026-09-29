@@ -47,9 +47,8 @@ Detalles que se pueden conmutar en pantalla:
 
 ## ¿De dónde salen los datos?
 
-De los apuntes de clase. El proceso de lectura y corrección —las frases
-dudosas, las decisiones tomadas y los detalles confirmados— está documentado
-en [`REVISAR.md`](REVISAR.md).
+Está basado en apuntes de química de clase: de ahí salen los compuestos y
+grupos que recoge la base de datos.
 
 ## Añadir o cambiar compuestos
 
@@ -158,9 +157,8 @@ be shared by email or chat and still work without an internet connection.
 families, with toggles for the aromatic ring style (alternating bonds vs.
 circle), the nitrogen lone pair (`N̈`), and two condensed-formula layouts.
 
-**Where the data comes from:** the class notes. The reading and correction
-process — ambiguous sentences, decisions made, confirmed details — is
-documented in [`REVISAR.md`](REVISAR.md) (Spanish).
+**Where the data comes from:** chemistry class notes; the compounds and groups
+in the database are taken from them.
 
 **Editing the data:** the database is
 [`datos/compuestos.toml`](datos/compuestos.toml); copy a `[[compuesto]]` block,
