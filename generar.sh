@@ -12,15 +12,19 @@ if [ ! -x "$PY" ]; then
   PY="python3"
 fi
 
-echo "1/3  Comprobando la base de datos…"
+echo "1/4  Comprobando la base de datos…"
 "$PY" tests/test_datos.py
 
 echo
-echo "2/3  Comprobando el parser de nombres…"
+echo "2/4  Comprobando la postura de las moléculas…"
+"$PY" tests/test_postura.py
+
+echo
+echo "3/4  Comprobando el parser de nombres…"
 "$PY" tests/test_parser.py
 
 echo
-echo "3/3  Generando el archivo…"
+echo "4/4  Generando el archivo…"
 "$PY" src/construir.py
 
 echo

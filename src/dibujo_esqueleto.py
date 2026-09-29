@@ -13,10 +13,8 @@ Los anillos aromáticos se pueden dibujar de las dos formas del curso:
 con dobles enlaces alternos (por defecto) o con un círculo en medio
 (`circulos=True`).
 
-Algunos compuestos llevan ajustes para quedar como en los apuntes: el
-2-penten-3-ol se recoloca con la cadena horizontal y el -OH debajo, el
-metoxibenceno con el -OCH3 a la derecha (con su ralla) y las cadenas de los
-alquinos (etinilbenceno, 1-fenil-2-butino) se doblan en zigzag. Los rótulos
+Algunos compuestos llevan ajustes para quedar como en los apuntes; de la
+colocación de la molécula (la postura) se encarga `postura.py`. Los rótulos
 que RDKit no sabe escribir (el símbolo ≡, la valencia libre ⁻) se dibujan
 con el motor de las fórmulas semidesarrolladas, para que las rayas sean las
 mismas.
@@ -28,9 +26,8 @@ import math
 import re
 
 from rdkit import Chem
-from rdkit.Chem import rdDepictor
 from rdkit.Chem.Draw import rdMolDraw2D
-from rdkit.Geometry import Point2D, Point3D
+from rdkit.Geometry import Point2D
 
 from dibujo_condensada import (
     ASCENSO,
@@ -42,6 +39,13 @@ from dibujo_condensada import (
     analizar,
     centros_grupos,
     dibujar,
+)
+from postura import (
+    A_MANO,
+    anillos_aromaticos,
+    es_anisol,
+    orientar_etiqueta,
+    postura,
 )
 
 ANCHO = 440
@@ -60,19 +64,9 @@ _ETIQUETAS_R = ["R", "R'", "R''"]
 _CORRECCION_FUENTE = 0.708 / 0.662
 # Separación entre el final del enlace y el texto dibujado a mano.
 _HUECO_TEXTO = 0.28
-# Ángulo del quiebro en las cadenas que CoordGen ha dibujado rectas.
-_DOBLADO = 60.0
-# Caracteres que RDKit no escribe a la manera del curso: esos rótulos se
-# dibujan con el motor de las fórmulas semidesarrolladas (el símbolo ≡, la
-# valencia libre ⁻ y las rallitas de los enlaces).
-_A_MANO = ("≡", "⁻", "-")
 
 # Fuente del curso (se carga solo si hace falta dibujar texto a mano).
 _FUENTE: FuenteTexto | None = None
-
-# CoordGen produce esquemas más rectos y regulares (cadenas horizontales),
-# como los dibujos a mano de los apuntes.
-rdDepictor.SetPreferCoordGen(True)
 
 # Grupos que se agrupan en una sola etiqueta en la vista semidesarrollada.
 # Cada entrada es (SMARTS, etiqueta, átomo del match que lleva la etiqueta,
@@ -189,15 +183,6 @@ def _colapsar_grupos(
     return dibujo, etiquetas, mapa_anclas
 
 
-def _anillos_aromaticos(mol: Chem.Mol) -> list[tuple[int, ...]]:
-    """Anillos en los que todos los átomos son aromáticos (bencenos...)."""
-    return [
-        anillo
-        for anillo in mol.GetRingInfo().AtomRings()
-        if all(mol.GetAtomWithIdx(i).GetIsAromatic() for i in anillo)
-    ]
-
-
 def _sin_dobles_en_anillos(mol: Chem.Mol, anillos: list[tuple[int, ...]]) -> Chem.Mol:
     """Copia de dibujo con los enlaces de esos anillos como líneas simples.
 
@@ -244,297 +229,6 @@ def _con_subindices(etiqueta: str) -> str:
     return re.sub(r"(\d+)", r"<sub>\1</sub>", etiqueta)
 
 
-def _orientar_etiqueta(mol: Chem.Mol, indice: int, etiqueta: str) -> str:
-    """Escribe el grupo en el sentido en que se une a la cadena.
-
-    El etilo es CH2CH3 o CH3CH2 según de qué lado esté el anillo, para que
-    se lea de izquierda a derecha en el orden en que se une, como en los
-    apuntes (CH3-CH2-anillo).
-    """
-    if etiqueta != "CH2CH3":
-        return etiqueta
-    conf = mol.GetConformer()
-    p = conf.GetAtomPosition(indice)
-    for vecino in mol.GetAtomWithIdx(indice).GetNeighbors():
-        q = conf.GetAtomPosition(vecino.GetIdx())
-        if q.x > p.x + 0.1:
-            return "CH3CH2"  # la cadena está a la derecha
-        if q.x < p.x - 0.1:
-            return "CH2CH3"  # la cadena está a la izquierda
-    return etiqueta
-
-
-def _vinilos(mol: Chem.Mol, etiquetas: dict[int, str]) -> list[tuple[int, int]]:
-    """Pares (átomo del vinilo, átomo al que se une), colapsado o sin colapsar."""
-    pares: list[tuple[int, int]] = []
-    for i, et in etiquetas.items():
-        if et.startswith("CH="):
-            vecinos = [v.GetIdx() for v in mol.GetAtomWithIdx(i).GetNeighbors()]
-            if vecinos:
-                pares.append((i, vecinos[0]))
-    if pares:
-        return pares
-    patron = Chem.MolFromSmarts("[R][CX3H1]=[CX3H2]")
-    if patron is None:
-        return []
-    return [(m[1], m[0]) for m in mol.GetSubstructMatches(patron)]
-
-
-def _espejo_si_vinilo_izquierda(mol: Chem.Mol, etiquetas: dict[int, str]) -> None:
-    """Refleja el dibujo si el vinilo queda a la izquierda de su unión.
-
-    El grupo se escribe CH=CH2 (con la unión por la izquierda, como en los
-    apuntes); si el esqueleto lo coloca a la izquierda del anillo, se refleja
-    para que la línea llegue al CH y el texto se lea en el sentido correcto.
-    """
-    pares = _vinilos(mol, etiquetas)
-    if not pares:
-        return
-    conf = mol.GetConformer()
-    for i, union in pares:
-        p = conf.GetAtomPosition(i)
-        q = conf.GetAtomPosition(union)
-        if p.x > q.x:
-            return  # el vinilo ya está a la derecha: no hay que hacer nada
-    for i in range(mol.GetNumAtoms()):
-        p = conf.GetAtomPosition(i)
-        conf.SetAtomPosition(i, Point3D(-p.x, p.y, p.z))
-
-
-# ---------------------------------------------------------------------------
-#  Postura y quiebro (para que el dibujo quede como en los apuntes)
-# ---------------------------------------------------------------------------
-
-def _girar(
-    mol: Chem.Mol,
-    centro: tuple[float, float],
-    angulo: float,
-    indices: list[int] | None = None,
-) -> None:
-    """Gira las coordenadas (en el plano) alrededor de un punto."""
-    conf = mol.GetConformer()
-    coseno, seno = math.cos(angulo), math.sin(angulo)
-    if indices is None:
-        indices = list(range(mol.GetNumAtoms()))
-    for i in indices:
-        p = conf.GetAtomPosition(i)
-        dx, dy = p.x - centro[0], p.y - centro[1]
-        conf.SetAtomPosition(
-            i,
-            Point3D(
-                centro[0] + coseno * dx - seno * dy,
-                centro[1] + seno * dx + coseno * dy,
-                p.z,
-            ),
-        )
-
-
-def _angulo_en(mol: Chem.Mol, i: int, j: int, k: int) -> float:
-    """Ángulo (en grados) entre los enlaces j-i y j-k."""
-    conf = mol.GetConformer()
-    p, q, r = (conf.GetAtomPosition(x) for x in (i, j, k))
-    ux, uy = p.x - q.x, p.y - q.y
-    vx, vy = r.x - q.x, r.y - q.y
-    norma = math.hypot(ux, uy) * math.hypot(vx, vy)
-    if not norma:
-        return 0.0
-    coseno = max(-1.0, min(1.0, (ux * vx + uy * vy) / norma))
-    return math.degrees(math.acos(coseno))
-
-
-def _subarbol(mol: Chem.Mol, raiz: int, bloqueado: int) -> list[int]:
-    """Átomos que cuelgan de `raiz` sin pasar por `bloqueado`."""
-    dentro: list[int] = []
-    vistos = {bloqueado}
-    pendientes = [raiz]
-    while pendientes:
-        i = pendientes.pop()
-        if i in vistos:
-            continue
-        vistos.add(i)
-        dentro.append(i)
-        pendientes.extend(v.GetIdx() for v in mol.GetAtomWithIdx(i).GetNeighbors())
-    return dentro
-
-
-def _cadenas_rectas(
-    mol: Chem.Mol, excluidos: set[int] | None = None
-) -> list[list[int]]:
-    """Caminos que cuelgan de un anillo y han quedado dibujados casi rectos.
-
-    CoordGen alinea los tramos con carbonos sp (los alquinos) y en el dibujo
-    parecen una sola raya larga; en los apuntes cada enlace cambia de
-    dirección. Se devuelve el camino completo, empezando por el átomo del
-    anillo que lo sujeta, para que el quiebro separe también el primer enlace
-    del sustituyente. Los átomos con rótulo propio (los grupos ya escritos,
-    como el C(=O)-O del benzoato de fenilo) no cuentan como cadena.
-    """
-    en_anillo = {i for anillo in mol.GetRingInfo().AtomRings() for i in anillo}
-    excluidos = excluidos or set()
-
-    def es_recto(i: int) -> bool:
-        atomo = mol.GetAtomWithIdx(i)
-        if (
-            i in excluidos
-            or i in en_anillo
-            or len(atomo.GetNeighbors()) != 2
-        ):
-            return False
-        a, b = (v.GetIdx() for v in atomo.GetNeighbors())
-        return _angulo_en(mol, a, i, b) >= 170.0
-
-    def vecinos_rectos(i: int) -> list[int]:
-        return [
-            v.GetIdx()
-            for v in mol.GetAtomWithIdx(i).GetNeighbors()
-            if es_recto(v.GetIdx())
-        ]
-
-    def fuera(i: int, dentro: set[int]) -> list[int]:
-        return [
-            v.GetIdx()
-            for v in mol.GetAtomWithIdx(i).GetNeighbors()
-            if v.GetIdx() not in dentro
-        ]
-
-    rectos = {a.GetIdx() for a in mol.GetAtoms() if es_recto(a.GetIdx())}
-    cadenas: list[list[int]] = []
-    vistos: set[int] = set()
-    for inicio in sorted(rectos):
-        if inicio in vistos:
-            continue
-        # ir hasta un extremo del tramo de átomos rectos
-        extremo, anterior = inicio, None
-        while True:
-            siguientes = [j for j in vecinos_rectos(extremo) if j != anterior]
-            if not siguientes:
-                break
-            anterior, extremo = extremo, siguientes[0]
-        tramo = [extremo]
-        vistos.add(extremo)
-        while True:
-            siguientes = [j for j in vecinos_rectos(tramo[-1]) if j not in vistos]
-            if not siguientes:
-                break
-            tramo.append(siguientes[0])
-            vistos.add(siguientes[0])
-
-        dentro = set(tramo)
-        if len(tramo) == 1:
-            extremos = fuera(tramo[0], dentro)
-            if len(extremos) != 2:
-                continue
-            izquierda, derecha = extremos
-        else:
-            externos_izq = fuera(tramo[0], dentro)
-            externos_der = fuera(tramo[-1], dentro)
-            if len(externos_izq) != 1 or len(externos_der) != 1:
-                continue
-            izquierda, derecha = externos_izq[0], externos_der[0]
-
-        camino = [izquierda] + tramo + [derecha]
-        # el camino debe empezar por el lado que cuelga del anillo
-        def anillo_de(i: int) -> int | None:
-            if i in en_anillo:
-                return i
-            vecinos = [
-                v.GetIdx()
-                for v in mol.GetAtomWithIdx(i).GetNeighbors()
-                if v.GetIdx() in en_anillo
-            ]
-            return vecinos[0] if len(vecinos) == 1 else None
-
-        inicio_anillo = anillo_de(camino[0])
-        if inicio_anillo is None:
-            inicio_anillo = anillo_de(camino[-1])
-            if inicio_anillo is None:
-                continue
-            camino.reverse()
-        if camino[0] not in en_anillo:
-            camino = [inicio_anillo] + camino
-        cadenas.append(camino)
-    return cadenas
-
-
-def _direccion(conf: Chem.Conformer, i: int, j: int) -> float:
-    """Dirección (ángulo) del enlace i->j."""
-    pi, pj = conf.GetAtomPosition(i), conf.GetAtomPosition(j)
-    return math.atan2(pj.y - pi.y, pj.x - pi.x)
-
-
-def _doblar_cadenas(mol: Chem.Mol, excluidos: set[int] | None = None) -> None:
-    """Da ángulos a las cadenas que han salido rectas (los alquinos).
-
-    Se toma como referencia el enlace que sujeta la cadena al anillo y cada
-    enlace siguiente queda a un lado y otro, en zigzag, como en los apuntes.
-    """
-    for camino in _cadenas_rectas(mol, excluidos):
-        conf = mol.GetConformer()
-        base = _direccion(conf, camino[0], camino[1])
-        for k in range(1, len(camino) - 1):
-            conf = mol.GetConformer()
-            objetivo = base + math.radians(_DOBLADO if k % 2 else -_DOBLADO)
-            actual = _direccion(conf, camino[k], camino[k + 1])
-            p = conf.GetAtomPosition(camino[k])
-            _girar(
-                mol,
-                (p.x, p.y),
-                objetivo - actual,
-                _subarbol(mol, camino[k + 1], camino[k]),
-            )
-
-
-def _anisol(mol: Chem.Mol) -> tuple[tuple[int, ...], int] | None:
-    """(anillo, oxígeno) si es un benceno con un único sustituyente -O-CH3.
-
-    Es el éter no simétrico de los apuntes, que se dibuja con el O y el CH3
-    separados y con su ralla entre los dos, no con la etiqueta «OCH3».
-    """
-    anillos = _anillos_aromaticos(mol)
-    if len(anillos) != 1 or len(anillos[0]) != 6:
-        return None
-    anillo = anillos[0]
-    exociclicos = [
-        vecino.GetIdx()
-        for i in anillo
-        for vecino in mol.GetAtomWithIdx(i).GetNeighbors()
-        if vecino.GetIdx() not in anillo
-    ]
-    if len(exociclicos) != 1:
-        return None
-    oxigeno = mol.GetAtomWithIdx(exociclicos[0])
-    if oxigeno.GetAtomicNum() != 8:
-        return None
-    tiene_metilo = any(
-        v.GetAtomicNum() == 6 and v.GetTotalNumHs() == 3
-        for v in oxigeno.GetNeighbors()
-        if v.GetIdx() not in anillo
-    )
-    return (anillo, exociclicos[0]) if tiene_metilo else None
-
-
-def _es_anisol(mol: Chem.Mol) -> bool:
-    """True para el metoxibenceno."""
-    return _anisol(mol) is not None
-
-
-def _orientar_metoxibenceno(mol: Chem.Mol) -> bool:
-    """Anisol (el éter no simétrico): el -OCH3 a la derecha del anillo.
-
-    Es como está en los apuntes: el anillo a la izquierda y «O-CH3» al lado.
-    """
-    anisol = _anisol(mol)
-    if anisol is None:
-        return False
-    anillo, oxigeno = anisol
-    conf = mol.GetConformer()
-    centro = (sum(conf.GetAtomPosition(i).x for i in anillo) / 6)
-    centro_y = (sum(conf.GetAtomPosition(i).y for i in anillo) / 6)
-    po = conf.GetAtomPosition(oxigeno)
-    _girar(mol, (centro, centro_y), -math.atan2(po.y - centro_y, po.x - centro))
-    return True
-
-
 def _es_ciclohexanocarbaldehido(mol: Chem.Mol) -> bool:
     """True para el ciclohexano con un solo -CHO.
 
@@ -542,323 +236,6 @@ def _es_ciclohexanocarbaldehido(mol: Chem.Mol) -> bool:
     al lado del anillo.
     """
     return Chem.MolToSmiles(mol) == "O=CC1CCCCC1"
-
-
-def _orientar_ciclohexanocarbaldehido(
-    mol: Chem.Mol, etiquetas: dict[int, str]
-) -> bool:
-    """Ciclohexanocarbaldehído: la línea del -CHO hacia arriba.
-
-    En los apuntes sale del anillo hacia arriba (no hacia la derecha), tanto
-    en la vista de estructura como en la semidesarrollada.
-    """
-    aldehido = None
-    for i, etiqueta in etiquetas.items():
-        if etiqueta == "CHO":
-            aldehido = i
-    if aldehido is None:
-        patron = Chem.MolFromSmarts("[CX3H1](=O)[CH1]1CCCCC1")
-        if patron is not None:
-            coincidencias = mol.GetSubstructMatches(patron)
-            if coincidencias:
-                aldehido = coincidencias[0][0]
-    if aldehido is None:
-        return False
-    en_anillo = {i for anillo in mol.GetRingInfo().AtomRings() for i in anillo}
-    uniones = [
-        v.GetIdx()
-        for v in mol.GetAtomWithIdx(aldehido).GetNeighbors()
-        if v.GetIdx() in en_anillo
-    ]
-    if len(uniones) != 1:
-        return False
-    conf = mol.GetConformer()
-    p = conf.GetAtomPosition(aldehido)
-    q = conf.GetAtomPosition(uniones[0])
-    _girar(
-        mol,
-        (q.x, q.y),
-        math.radians(90.0) - math.atan2(p.y - q.y, p.x - q.x),
-    )
-    return True
-
-
-def _orientar_penten_3_ol(mol: Chem.Mol) -> bool:
-    """2-penten-3-ol: la cadena, horizontal y el -OH debajo, como los apuntes.
-
-    CoordGen lo dibuja en forma de «V» (los dos metilos quedan juntos); aquí
-    se recoloca la cadena en zigzag horizontal, de izquierda a derecha.
-    """
-    if Chem.MolToSmiles(mol) != "CC=C(O)CC":
-        return False
-    conf = mol.GetConformer()
-
-    def hidrogenos(i: int) -> int:
-        return mol.GetAtomWithIdx(i).GetTotalNumHs()
-
-    # C1 (metilo del etilo) -> C2 (CH2) -> C3 (C-OH) = C4 (CH) -> C5 (metilo)
-    c1 = c2 = c3 = c4 = c5 = None
-    for m in (
-        a.GetIdx()
-        for a in mol.GetAtoms()
-        if a.GetAtomicNum() == 6 and hidrogenos(a.GetIdx()) == 3
-    ):
-        vecino = mol.GetAtomWithIdx(m).GetNeighbors()[0].GetIdx()
-        if hidrogenos(vecino) == 2:      # -CH2-: este metilo es el del etilo
-            c1, c2 = m, vecino
-            break
-    if c1 is None:
-        return False
-    for v in mol.GetAtomWithIdx(c2).GetNeighbors():
-        if v.GetIdx() != c1:
-            c3 = v.GetIdx()
-    if c3 is None or hidrogenos(c3) != 0:
-        return False
-    oxigeno = None
-    for v in mol.GetAtomWithIdx(c3).GetNeighbors():
-        if v.GetAtomicNum() == 8:
-            oxigeno = v.GetIdx()
-        elif mol.GetBondBetweenAtoms(c3, v.GetIdx()).GetBondType() == Chem.BondType.DOUBLE:
-            c4 = v.GetIdx()
-    if oxigeno is None or c4 is None:
-        return False
-    for v in mol.GetAtomWithIdx(c4).GetNeighbors():
-        if v.GetIdx() != c3 and hidrogenos(v.GetIdx()) == 3:
-            c5 = v.GetIdx()
-    if c5 is None:
-        return False
-
-    largo = 1.5
-    seno, coseno = math.sin(math.radians(30.0)), math.cos(math.radians(30.0))
-    posiciones = {c1: (0.0, 0.0)}
-    px, py = posiciones[c1]
-    for carbono, arriba in ((c2, True), (c3, False), (c4, True), (c5, False)):
-        py = py + (largo * seno if arriba else -largo * seno)
-        px = px + largo * coseno
-        posiciones[carbono] = (px, py)
-    posiciones[oxigeno] = (posiciones[c3][0], posiciones[c3][1] - largo)
-    for i, (x, y) in posiciones.items():
-        conf.SetAtomPosition(i, Point3D(x, y, 0.0))
-    return True
-
-
-# Sustituyentes que los apuntes dibujan hacia la derecha; en la vista
-# esquelética se reconocen por su SMARTS y en la semidesarrollada por la
-# etiqueta (el grupo ya está colapsado).
-_SUSTITUYENTES = [
-    ("[c][CX2H0]#[CX2H1]", 1),              # etinilbenceno: -C≡CH
-    ("[c][CH2][CX2H0]#[CX2H0][CH3]", 1),    # 1-fenil-2-butino: -CH2-C≡C-CH3
-    ("[c][CH2][CH2][OX2H1]", 1),            # 2-feniletanol: -CH2-CH2-OH
-    ("[c][CH2][NX3H2]", 1),                 # bencilamina: -CH2NH2
-    ("[c][CH2][#0]", 1),                    # bencilo: -CH2⁻ (punto de unión)
-]
-
-
-def _atomo_sustituyente(
-    mol: Chem.Mol, etiquetas: dict[int, str], anclas: dict[int, int | str] | None = None
-) -> int | None:
-    """Átomo del sustituyente que hay que colocar a la derecha."""
-    anclas = anclas or {}
-    for i, etiqueta in etiquetas.items():
-        if any(c in etiqueta for c in _A_MANO):
-            # si el rótulo se une por su último grupo, va hacia la izquierda:
-            # no se toca la orientación. Si va entre dos trozos (centro),
-            # tampoco.
-            return None if anclas.get(i) in ("ultimo", "centro") else i
-    for smarts, indice in _SUSTITUYENTES:
-        patron = Chem.MolFromSmarts(smarts)
-        if patron is None:
-            continue
-        coincidencias = mol.GetSubstructMatches(patron)
-        if coincidencias:
-            return coincidencias[0][indice]
-    return None
-
-
-def _orientar_sustituyentes(
-    mol: Chem.Mol, etiquetas: dict[int, str], anclas: dict[int, int | str] | None = None
-) -> None:
-    """Pone el sustituyente hacia la derecha, como en los apuntes."""
-    atomo = _atomo_sustituyente(mol, etiquetas, anclas)
-    if atomo is None:
-        return
-    en_anillo = {i for anillo in mol.GetRingInfo().AtomRings() for i in anillo}
-    uniones = [
-        v.GetIdx()
-        for v in mol.GetAtomWithIdx(atomo).GetNeighbors()
-        if v.GetIdx() in en_anillo
-    ]
-    if len(uniones) != 1:
-        return
-    conf = mol.GetConformer()
-    p = conf.GetAtomPosition(atomo)
-    q = conf.GetAtomPosition(uniones[0])
-    _girar(mol, (q.x, q.y), -math.atan2(p.y - q.y, p.x - q.x))
-
-
-def _voltear_vertical(mol: Chem.Mol) -> None:
-    """Refleja el dibujo de arriba abajo."""
-    conf = mol.GetConformer()
-    for i in range(mol.GetNumAtoms()):
-        p = conf.GetAtomPosition(i)
-        conf.SetAtomPosition(i, Point3D(p.x, -p.y, p.z))
-
-
-def _orientar_ciclobutano(mol: Chem.Mol, etiquetas: dict[int, str]) -> bool:
-    """1-etil-2-metilciclobutano: el anillo cuadrado y los grupos a la derecha.
-
-    Es como lo dibuja la imagen; CoordGen lo deja girado y con el etilo a la
-    izquierda. Vale igual para la vista semidesarrollada, donde el etilo ya
-    está escrito como etiqueta.
-    """
-    anillos = mol.GetRingInfo().AtomRings()
-    if len(anillos) != 1 or len(anillos[0]) != 4:
-        return False
-    if any(a.GetAtomicNum() != 6 for a in mol.GetAtoms()):
-        return False  # solo hidrocarburos
-    anillo = anillos[0]
-    sustituidos = [
-        i
-        for i in anillo
-        if any(v.GetIdx() not in anillo for v in mol.GetAtomWithIdx(i).GetNeighbors())
-    ]
-    if len(sustituidos) != 2:
-        return False
-    vecinos = {
-        frozenset((i, v.GetIdx()))
-        for i in anillo
-        for v in mol.GetAtomWithIdx(i).GetNeighbors()
-        if v.GetIdx() in anillo
-    }
-    if frozenset(sustituidos) not in vecinos:  # los dos grupos, en carbonos seguidos
-        return False
-    conf = mol.GetConformer()
-    centro_x = sum(conf.GetAtomPosition(i).x for i in anillo) / 4
-    centro_y = sum(conf.GetAtomPosition(i).y for i in anillo) / 4
-    medio_x = sum(conf.GetAtomPosition(i).x for i in sustituidos) / 2
-    medio_y = sum(conf.GetAtomPosition(i).y for i in sustituidos) / 2
-    _girar(
-        mol,
-        (centro_x, centro_y),
-        -math.atan2(medio_y - centro_y, medio_x - centro_x),
-    )
-    # el etilo queda abajo, como en la imagen (el metilo arriba)
-    etilo = None
-    for i in sustituidos:
-        for v in mol.GetAtomWithIdx(i).GetNeighbors():
-            if v.GetIdx() in anillo:
-                continue
-            etiqueta = etiquetas.get(v.GetIdx(), "")
-            if etiqueta.startswith(("CH2CH3", "CH3CH2")) or v.GetTotalNumHs() == 2:
-                etilo = i
-    if etilo is not None and mol.GetConformer().GetAtomPosition(etilo).y > centro_y:
-        _voltear_vertical(mol)
-    # los enlaces de los dos grupos salen horizontales hacia la derecha, como
-    # en la imagen (si no, quedan en diagonal)
-    conf = mol.GetConformer()
-    for i in sustituidos:
-        for v in mol.GetAtomWithIdx(i).GetNeighbors():
-            j = v.GetIdx()
-            if j in anillo:
-                continue
-            p, q = conf.GetAtomPosition(i), conf.GetAtomPosition(j)
-            _girar(
-                mol,
-                (p.x, p.y),
-                -math.atan2(q.y - p.y, q.x - p.x),
-                _subarbol(mol, j, i),
-            )
-    return True
-
-
-def _orientar_acido_ciclohexilpropanoico(
-    mol: Chem.Mol, etiquetas: dict[int, str]
-) -> bool:
-    """Ácido 2-ciclohexilpropanoico: el anillo arriba y la cadena debajo.
-
-    Así la línea baja del anillo a la cadena y el CH3-CH-COOH cuelga justo
-    debajo, como en los apuntes.
-    """
-    atomo = None
-    for i, etiqueta in etiquetas.items():
-        if etiqueta == "CH3-CH-COOH":
-            atomo = i
-    if atomo is None:
-        patron = Chem.MolFromSmarts("[C][CX4H1]([CH3])C(=O)O")
-        if patron is not None:
-            coincidencias = mol.GetSubstructMatches(patron)
-            if coincidencias:
-                atomo = coincidencias[0][1]
-    if atomo is None:
-        return False
-    en_anillo = {i for anillo in mol.GetRingInfo().AtomRings() for i in anillo}
-    uniones = [
-        v.GetIdx()
-        for v in mol.GetAtomWithIdx(atomo).GetNeighbors()
-        if v.GetIdx() in en_anillo
-    ]
-    if len(uniones) != 1:
-        return False
-    conf = mol.GetConformer()
-    p = conf.GetAtomPosition(atomo)
-    q = conf.GetAtomPosition(uniones[0])
-    # la dirección anillo->cadena, hacia abajo
-    _girar(mol, (q.x, q.y), math.radians(-90.0) - math.atan2(p.y - q.y, p.x - q.x))
-    return True
-
-
-def _orientar_ester_diarilico(
-    mol: Chem.Mol,
-    etiquetas: dict[int, str],
-    anclas: dict[int, int | str],
-) -> bool:
-    """Éster entre dos anillos (benzoato de fenilo): los dos anillos a los lados.
-
-    El rótulo C(=O)-O va en medio y cada anillo se gira alrededor del carbono
-    del éster para que su enlace quede horizontal (el vértice del anillo
-    apuntando al rótulo), como en los apuntes.
-    """
-    for i, ancla in anclas.items():
-        if ancla != "centro" or i not in etiquetas:
-            continue
-        vecinos = [v.GetIdx() for v in mol.GetAtomWithIdx(i).GetNeighbors()]
-        if len(vecinos) != 2:
-            continue
-        conf = mol.GetConformer()
-        p = conf.GetAtomPosition(i)
-        for j in vecinos:
-            pj = conf.GetAtomPosition(j)
-            dx, dy = pj.x - p.x, pj.y - p.y
-            objetivo = 0.0 if dx >= 0 else math.pi
-            _girar(
-                mol,
-                (p.x, p.y),
-                objetivo - math.atan2(dy, dx),
-                _subarbol(mol, j, i),
-            )
-        return True
-    return False
-
-
-def _orientar_como_en_los_apuntes(
-    mol: Chem.Mol,
-    etiquetas: dict[int, str],
-    anclas: dict[int, int | str] | None = None,
-) -> None:
-    """Coloca el dibujo en la postura en que aparece en los apuntes."""
-    if _orientar_penten_3_ol(mol):
-        return
-    if _orientar_metoxibenceno(mol):
-        return
-    if _orientar_ciclobutano(mol, etiquetas):
-        return
-    if _orientar_ciclohexanocarbaldehido(mol, etiquetas):
-        return
-    if _orientar_acido_ciclohexilpropanoico(mol, etiquetas):
-        return
-    if _orientar_ester_diarilico(mol, etiquetas, anclas or {}):
-        return
-    _orientar_sustituyentes(mol, etiquetas, anclas)
 
 
 def _fuente_del_curso() -> FuenteTexto:
@@ -1185,7 +562,7 @@ def _dibujar(
 ) -> str:
     anillos: list[tuple[int, ...]] = []
     if circulos:
-        anillos = _anillos_aromaticos(mol)
+        anillos = anillos_aromaticos(mol)
         if anillos:
             mol = _sin_dobles_en_anillos(mol, anillos)
 
@@ -1212,7 +589,7 @@ def _dibujar(
     textos = {
         i: (et, anclas.get(i, 0))
         for i, et in etiquetas.items()
-        if any(c in et for c in _A_MANO)
+        if any(c in et for c in A_MANO)
     }
 
     if metilos:
@@ -1225,17 +602,17 @@ def _dibujar(
             ):
                 o.atomLabels[atomo.GetIdx()] = _con_subindices("CH3")
 
-    # Se prepara el dibujo (kekuliza, calcula coordenadas…) y después se
-    # ajustan las etiquetas que dependen de la orientación.
+    # Se prepara el dibujo (kekuliza, calcula coordenadas…), se coloca la
+    # molécula como en los apuntes (el registro que devuelve la postura lo
+    # usan los tests) y se ajustan las etiquetas que dependen de la
+    # orientación.
     mol = rdMolDraw2D.PrepareMolForDrawing(mol)
-    _orientar_como_en_los_apuntes(mol, etiquetas, anclas)
-    _doblar_cadenas(mol, set(etiquetas))
-    _espejo_si_vinilo_izquierda(mol, etiquetas)
+    postura(mol, etiquetas, anclas)
     for i, etiqueta in etiquetas.items():
         if i in textos:
             o.atomLabels[i] = ""  # el rótulo lo dibuja el motor propio
         else:
-            o.atomLabels[i] = _con_subindices(_orientar_etiqueta(mol, i, etiqueta))
+            o.atomLabels[i] = _con_subindices(orientar_etiqueta(mol, i, etiqueta))
 
     d.DrawMolecule(mol)
     d.FinishDrawing()
@@ -1376,7 +753,7 @@ def svg_condensado_anillo(
         mol = _hacer_explicito_el_h_del_aldehido(mol)
     # En el éter no simétrico, los apuntes escriben O y CH3 separados (con su
     # ralla entre los dos), no la etiqueta «OCH3».
-    if _es_anisol(mol):
+    if es_anisol(mol):
         grupos = [g for g in _GRUPOS if g[1] != "OCH3"]
     dibujo, etiquetas, anclas = _colapsar_grupos(mol, grupos)
     if cooh_separado:

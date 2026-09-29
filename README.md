@@ -82,6 +82,7 @@ Tests sueltos:
 
 ```bash
 .venv/bin/python tests/test_datos.py    # base de datos y dibujos
+.venv/bin/python tests/test_postura.py  # reglas de postura y geometría
 .venv/bin/python tests/test_parser.py   # parser de nombres vs. catálogo
 ```
 
@@ -92,16 +93,21 @@ Tests sueltos:
 | `datos/compuestos.toml` | La base de datos editable (compuestos y fichas) |
 | `src/catalogo.py` | Lee y valida la base de datos |
 | `src/dibujo_esqueleto.py` | Estructuras de líneas, con RDKit |
+| `src/postura.py` | La colocación de cada molécula (las reglas de postura) |
 | `src/dibujo_condensada.py` | Fórmulas semidesarrolladas, con motor propio |
 | `src/construir.py` | Empaqueta todo en el HTML único |
 | `src/plantilla/` | La aplicación: HTML, CSS, JS y parser |
-| `tests/` | Comprobaciones de datos, dibujos y parser |
+| `tests/` | Comprobaciones de datos, dibujos, postura y parser |
 | `dist/Buscador_de_Formulas.html` | El entregable |
 | `.claude/skills/` | Skills de agente (ver abajo) |
 
 ### Cómo funciona por dentro
 
 - **Estructuras**: RDKit convierte el SMILES en SVG, en negro sobre blanco.
+- **Colocación**: cada molécula lleva una **postura** —las reglas nombradas de
+  `src/postura.py`—: el 2-penten-3-ol con el -OH debajo, el metoxibenceno con
+  el -OCH3 a la derecha, el éster diarílico con un anillo a cada lado… Los
+  compuestos sin regla se quedan con la colocación por defecto de RDKit.
 - **Semidesarrolladas**: un motor propio dibuja letras serif, subíndices y
   ramas verticales; el texto se convierte a curvas, así se ve igual en
   cualquier ordenador.
