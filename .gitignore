@@ -13,3 +13,6 @@ REVISAR.md
 
 # Sistema
 .DS_Store
+
+# Seguimiento de issues local (markdown, no se publica)
+.scratch/
