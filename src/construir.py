@@ -131,6 +131,79 @@ def _quitar_repetidas(imagenes: dict[str, str]) -> dict[str, str]:
     return salida
 
 
+# ---------------------------------------------------------------------------
+#  Las vistas: qué dibujo enseña cada combinación de los conmutadores
+#
+#  Los tres chips que cambian de dibujo son el anillo, los COOH y los CH2
+#  seguidos (el de los 2 puntos de la N no elige dibujo: sólo enseña o
+#  esconde un grupo dentro del SVG). De aquí sale una tabla por entrada, con
+#  una casilla por combinación, para que la aplicación no tenga que saber
+#  nada del espacio de claves: lee la que le toca.
+# ---------------------------------------------------------------------------
+
+ANILLOS = ("rayas", "circulo")
+COOHS = ("junto", "separado")
+CH2S = ("sueltos", "agrupados")
+
+# Lo que se prueba en cada estado de los chips de la fórmula: primero la
+# variante más completa y después las que van soltando conmutadores; el COOH
+# manda sobre el CH2, como cuando lo decidía la aplicación.
+_SUFIJOS = {
+    ("junto", "sueltos"): ("",),
+    ("junto", "agrupados"): ("ch2", ""),
+    ("separado", "sueltos"): ("cooh", ""),
+    ("separado", "agrupados"): ("cooh-ch2", "cooh", "ch2", ""),
+}
+
+
+def resolver_vistas(imagenes: dict[str, str]) -> dict[str, dict[str, str]]:
+    """Qué dibujo enseña cada combinación de los conmutadores.
+
+    Devuelve `estructura` (rayas o círculo) y `semidesarrollada` (las ocho
+    combinaciones de anillo, COOH y CH2), que no aparece si la entrada no
+    tiene ninguna variante `con*`. La política es la de siempre: primero el
+    anillo —el círculo, si el conmutador está encendido y existe— y después
+    la variante de la fórmula más completa que se haya dibujado, de modo que
+    un conmutador sin variante no cambia el dibujo y toda casilla tiene una
+    clave que existe.
+    """
+    vistas: dict[str, dict[str, str]] = {
+        "estructura": {
+            "rayas": "esq",
+            "circulo": "esq-circ" if "esq-circ" in imagenes else "esq",
+        }
+    }
+    if "con" not in imagenes:
+        return vistas
+
+    semidesarrollada: dict[str, str] = {}
+    for anillo in ANILLOS:
+        circulares = ("-circ", "") if anillo == "circulo" else ("",)
+        for cooh in COOHS:
+            for ch2 in CH2S:
+                clave = ""
+                for circular in circulares:
+                    for sufijo in _SUFIJOS[(cooh, ch2)]:
+                        candidata = "con" + circular + (f"-{sufijo}" if sufijo else "")
+                        if candidata in imagenes:
+                            clave = candidata
+                            break
+                    if clave:
+                        break
+                semidesarrollada[f"{anillo}-{cooh}-{ch2}"] = clave
+    vistas["semidesarrollada"] = semidesarrollada
+    return vistas
+
+
+def conmutadores(vistas: dict[str, dict[str, str]]) -> dict[str, bool]:
+    """Qué conmutadores de la fórmula cambian el dibujo (para sus chips)."""
+    claves = list(vistas.get("semidesarrollada", {}).values())
+    return {
+        "cooh": any("-cooh" in clave for clave in claves),
+        "ch2": any("-ch2" in clave for clave in claves),
+    }
+
+
 def main() -> int:
     entradas = catalogo.cargar()
     problemas = catalogo.validar(entradas)
@@ -145,6 +218,7 @@ def main() -> int:
 
     for e in entradas:
         imagenes = dibujar(e)
+        vistas = resolver_vistas(imagenes)
         for tipo, svg in imagenes.items():
             bloques_imagenes.append(
                 f'<div class="grafico" id="img-{tipo}-{e.id}" hidden>{svg}</div>'
@@ -159,10 +233,10 @@ def main() -> int:
             "formula": formula_molecular(e.smiles),
             "notas": e.notas,
             "condensada_texto": e.condensada,
+            "vistas": vistas,
             "circulos": tiene_aromatico(e.smiles),
             "puntos": tiene_nitrogeno(e.smiles),
-            "cooh": "con-cooh" in imagenes or "con-circ-cooh" in imagenes,
-            "ch2": "con-ch2" in imagenes or "con-cooh-ch2" in imagenes,
+            **conmutadores(vistas),
         })
 
     familias = [f for f in catalogo.FAMILIAS if any(f in d["familias"] for d in datos)]

@@ -140,10 +140,6 @@
     return nodo ? nodo.innerHTML : "";
   }
 
-  function tieneImagen(entrada, tipo) {
-    return !!document.getElementById("img-" + tipo + "-" + entrada.id);
-  }
-
   /* ------------------------------------------------------------- búsqueda */
 
   function buscar(consulta) {
@@ -295,40 +291,27 @@
       }
     }
 
-    /* Si el compuesto tiene anillos aromáticos, se puede elegir entre la
-       versión con dobles enlaces y la versión con círculo. */
-    function tipoImagen(base) {
-      return (circulos && tieneImagen(e, base + "-circ")) ? base + "-circ" : base;
+    /* Los dibujos que hay que enseñar los resuelve el build: aquí sólo se
+       lee la casilla de la combinación de conmutadores en la que estamos. */
+    function tipoEstructura() {
+      return e.vistas.estructura[circulos ? "circulo" : "rayas"];
     }
 
-    /* La vista semidesarrollada según los conmutadores: se busca la
-       variante más completa que exista (COOH separado, CH2 agrupados). */
-    function tipoSemidesarrollada() {
-      var pruebas = [];
-      if (coohSeparado && ch2Agrupados) {
-        pruebas = ["cooh-ch2", "cooh", "ch2", ""];
-      } else if (coohSeparado) {
-        pruebas = ["cooh", ""];
-      } else if (ch2Agrupados) {
-        pruebas = ["ch2", ""];
-      } else {
-        pruebas = [""];
-      }
-      var circulares = (circulos && tieneImagen(e, "con-circ")) ? ["-circ", ""] : [""];
-      for (var c = 0; c < circulares.length; c++) {
-        for (var p = 0; p < pruebas.length; p++) {
-          var tipo = "con" + circulares[c] + (pruebas[p] ? "-" + pruebas[p] : "");
-          if (tieneImagen(e, tipo)) return tipo;
-        }
-      }
-      return "con";
+    function combinacion() {
+      return (circulos ? "circulo" : "rayas") + "-" +
+        (coohSeparado ? "separado" : "junto") + "-" +
+        (ch2Agrupados ? "agrupados" : "sueltos");
     }
 
     function pintarVistas() {
       vistas.innerHTML = "";
-      añadirVista("Estructura", imagen(e, tipoImagen("esq")), "estructura");
-      if (tieneImagen(e, "con")) {
-        añadirVista("Fórmula semidesarrollada", imagen(e, tipoSemidesarrollada()), "semidesarrollada");
+      añadirVista("Estructura", imagen(e, tipoEstructura()), "estructura");
+      if (e.vistas.semidesarrollada) {
+        añadirVista(
+          "Fórmula semidesarrollada",
+          imagen(e, e.vistas.semidesarrollada[combinacion()]),
+          "semidesarrollada"
+        );
       }
     }
 

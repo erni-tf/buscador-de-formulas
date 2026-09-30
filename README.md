@@ -95,7 +95,7 @@ Tests sueltos:
 | `src/dibujo_esqueleto.py` | Estructuras de líneas, con RDKit |
 | `src/postura.py` | La colocación de cada molécula (las reglas de postura) |
 | `src/dibujo_condensada.py` | Fórmulas semidesarrolladas, con motor propio |
-| `src/construir.py` | Empaqueta todo en el HTML único |
+| `src/construir.py` | Empaqueta el HTML único y resuelve las vistas de cada conmutador |
 | `src/plantilla/` | La aplicación: HTML, CSS, JS y parser |
 | `tests/` | Comprobaciones de datos, dibujos, postura y parser |
 | `dist/Buscador_de_Formulas.html` | El entregable |
