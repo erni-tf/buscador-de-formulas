@@ -55,7 +55,8 @@ _Avoid_: fórmula condensada, condensada
 **Conmutador**:
 Control de pantalla que cambia la forma de una vista: el anillo aromático con
 rayas o con círculo, el par de electrones del nitrógeno, los COOH juntos o
-desarrollados, los CH₂ seguidos sueltos o agrupados.
+desarrollados y los CH₂ seguidos o los CH₃ (y etilos) repetidos sueltos o
+agrupados.
 _Avoid_: opción, ajuste, toggle
 
 ### La postura

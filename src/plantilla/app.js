@@ -78,6 +78,20 @@
     } catch (err) { /* si no se puede guardar, no pasa nada */ }
   }
 
+  /* Los CH3 repetidos del mismo átomo: sueltos (CH3-CH[CH3]-...) o juntos en
+     un grupo ((CH3)2CH-...), como en los apuntes del metanoato de isopropilo
+     y de la dietilmetilamina ((CH3CH2)2N-CH3). */
+  var ch3Agrupados = false;
+  try {
+    ch3Agrupados = window.localStorage.getItem("ch3") === "agrupados";
+  } catch (err) { ch3Agrupados = false; }
+
+  function guardarCh3() {
+    try {
+      window.localStorage.setItem("ch3", ch3Agrupados ? "agrupados" : "sueltos");
+    } catch (err) { /* si no se puede guardar, no pasa nada */ }
+  }
+
   /* ---------------------------------------------------------------- texto */
 
   function sinAcentos(texto) {
@@ -300,7 +314,8 @@
     function combinacion() {
       return (circulos ? "circulo" : "rayas") + "-" +
         (coohSeparado ? "separado" : "junto") + "-" +
-        (ch2Agrupados ? "agrupados" : "sueltos");
+        (ch2Agrupados ? "agrupados" : "sueltos") + "-" +
+        (ch3Agrupados ? "agrupados" : "sueltos");
     }
 
     function pintarVistas() {
@@ -401,6 +416,28 @@
         conmCh.appendChild(b);
       });
       elDetalle.appendChild(conmCh);
+    }
+
+    if (e.ch3) {
+      var conmCh3 = document.createElement("div");
+      conmCh3.className = "conmutador";
+      var ctCh3 = document.createElement("span");
+      ctCh3.className = "conmutador-titulo";
+      ctCh3.textContent = "CH₃ repetidos:";
+      conmCh3.appendChild(ctCh3);
+      [["sueltos", "sueltos"], ["agrupados", "(CH₃)ₙ"]].forEach(function (op) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip" + ((ch3Agrupados ? "agrupados" : "sueltos") === op[0] ? " activo" : "");
+        b.textContent = op[1];
+        b.onclick = function () {
+          ch3Agrupados = (op[0] === "agrupados");
+          guardarCh3();
+          mostrar(e);
+        };
+        conmCh3.appendChild(b);
+      });
+      elDetalle.appendChild(conmCh3);
     }
 
     pintarVistas();

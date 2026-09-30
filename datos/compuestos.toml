@@ -1118,7 +1118,7 @@ nombre = "N-etiletanamida"
 alias = []
 familia = "amidas"
 smiles = "CCNC(C)=O"
-condensada = "CH3-C[=O]-NH-CH2-CH3"
+condensada = "CH3-C[=O]-N[H]-CH2-CH3"
 notas = "Amida secundaria."
 
 [[compuesto]]

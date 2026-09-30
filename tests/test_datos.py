@@ -15,6 +15,7 @@ sys.path.insert(0, str(RAIZ / "src"))
 
 import catalogo  # noqa: E402
 import construir  # noqa: E402
+from dibujo_condensada import _agrupar_ch3, analizar  # noqa: E402
 from rdkit import Chem, RDLogger  # noqa: E402
 
 RDLogger.DisableLog("rdApp.*")
@@ -38,54 +39,111 @@ CASOS_ESTRUCTURA = [
 
 # (nombre, claves dibujadas, combinación, clave esperada)
 CASOS_FORMULA = [
-    ("sin variantes dibujadas", ["esq", "con"], "rayas-junto-sueltos", "con"),
-    ("el COOH pedido manda", ["esq", "con", "con-cooh"], "rayas-separado-sueltos", "con-cooh"),
-    ("el COOH no dibujado cae al con", ["esq", "con"], "rayas-separado-sueltos", "con"),
-    ("el CH2 pedido manda", ["esq", "con", "con-ch2"], "rayas-junto-agrupados", "con-ch2"),
-    ("el CH2 no dibujado cae al con", ["esq", "con", "con-cooh"], "rayas-junto-agrupados", "con"),
+    ("sin variantes dibujadas", ["esq", "con"], "rayas-junto-sueltos-sueltos", "con"),
+    ("el COOH pedido manda", ["esq", "con", "con-cooh"], "rayas-separado-sueltos-sueltos", "con-cooh"),
+    ("el COOH no dibujado cae al con", ["esq", "con"], "rayas-separado-sueltos-sueltos", "con"),
+    ("el CH2 pedido manda", ["esq", "con", "con-ch2"], "rayas-junto-agrupados-sueltos", "con-ch2"),
+    ("el CH2 no dibujado cae al con", ["esq", "con", "con-cooh"], "rayas-junto-agrupados-sueltos", "con"),
+    ("el CH3 pedido manda", ["esq", "con", "con-ch3"], "rayas-junto-sueltos-agrupados", "con-ch3"),
+    ("el CH3 no dibujado cae al con", ["esq", "con", "con-cooh"], "rayas-junto-sueltos-agrupados", "con"),
     (
         "la variante completa manda",
-        ["esq", "con", "con-cooh", "con-ch2", "con-cooh-ch2"],
-        "rayas-separado-agrupados",
-        "con-cooh-ch2",
+        ["esq", "con", "con-cooh", "con-ch2", "con-cooh-ch2", "con-ch3",
+         "con-cooh-ch3", "con-ch2-ch3", "con-cooh-ch2-ch3"],
+        "rayas-separado-agrupados-agrupados",
+        "con-cooh-ch2-ch3",
     ),
     (
-        "el COOH manda sobre el CH2",
-        ["esq", "con", "con-cooh", "con-ch2"],
-        "rayas-separado-agrupados",
+        "el COOH manda sobre el CH2 y el CH3",
+        ["esq", "con", "con-cooh", "con-ch2", "con-ch3"],
+        "rayas-separado-agrupados-agrupados",
         "con-cooh",
+    ),
+    (
+        "el CH2 manda sobre el CH3",
+        ["esq", "con", "con-ch2", "con-ch3"],
+        "rayas-junto-agrupados-agrupados",
+        "con-ch2",
     ),
     (
         "el círculo manda sobre la fórmula",
         ["esq", "esq-circ", "con", "con-circ", "con-cooh"],
-        "circulo-separado-sueltos",
+        "circulo-separado-sueltos-sueltos",
         "con-circ",
     ),
     (
         "el círculo con COOH, si existe",
         ["esq", "esq-circ", "con", "con-circ", "con-circ-cooh", "con-cooh"],
-        "circulo-separado-sueltos",
+        "circulo-separado-sueltos-sueltos",
         "con-circ-cooh",
+    ),
+    (
+        "el círculo con CH3, si existe",
+        ["esq", "esq-circ", "con", "con-circ", "con-ch3", "con-circ-ch3"],
+        "circulo-junto-sueltos-agrupados",
+        "con-circ-ch3",
     ),
     (
         "el círculo sin variante de CH2",
         ["esq", "esq-circ", "con", "con-circ", "con-circ-cooh"],
-        "circulo-junto-agrupados",
+        "circulo-junto-agrupados-sueltos",
         "con-circ",
     ),
     (
         "sin círculo dibujado, la fórmula sigue",
         ["esq", "con", "con-cooh"],
-        "circulo-separado-sueltos",
+        "circulo-separado-sueltos-sueltos",
         "con-cooh",
     ),
 ]
+
+# ---------------------------------------------------------------------------
+#  El conmutador «CH3»: el agrupado que hace dibujo_condensada._agrupar_ch3
+#
+#  Cada caso da la fórmula del DSL y el resultado esperado (el mismo DSL,
+#  como lo devolvería el serializador de abajo).
+# ---------------------------------------------------------------------------
+
+CASOS_CH3 = [
+    ("isopropilo", "CH3-CH[CH3]-O-C[=O]-H", "(CH3)2CH-O-C[=O]-H"),
+    ("dimetilformamida", "H-C[=O]-N[CH3]-CH3", "H-C[=O]-N(CH3)2"),
+    ("tert-butilamina", "CH3-C{NH2}[CH3]-CH3", "(CH3)3C-NH2"),
+    ("dietilmetilamina", "CH3-CH2-N[CH3]-CH2-CH3", "(CH3CH2)2N-CH3"),
+    ("éter dietílico", "CH3-CH2-O-CH2-CH3", "(CH3CH2)2O"),
+    ("ácido ramificado", "CH3-CH[CH3]-CH2-COOH", "(CH3)2CH-CH2-COOH"),
+    ("alqueno", "CH2=CH-CH[CH3]-CH3", "CH2=CH-CH(CH3)2"),
+    ("tres metilos", "CH3-C{CH3}[CH3]-CH{OH}-CH2-Br", "(CH3)3C-CH{OH}-CH2-Br"),
+    ("una cadena seguida no se agrupa", "CH3-CH2-CH2-CH3", "CH3-CH2-CH2-CH3"),
+]
+
+
+def _texto_cadena(cadena) -> str:
+    """Vuelve a escribir la cadena en el DSL (para los casos del CH3)."""
+    partes = []
+    for nodo, enlace in cadena:
+        texto = nodo.grupo
+        for lado, etiqueta in ((nodo.arriba, ("{", "}")), (nodo.abajo, ("[", "]"))):
+            for rama in lado:
+                contenido = _texto_cadena(rama.cadena)
+                if rama.enlace != "-":
+                    contenido = rama.enlace + contenido
+                texto += etiqueta[0] + contenido + etiqueta[1]
+        partes.append(texto + enlace)
+    return "".join(partes)
+
+
+# Claves que puede generar construir.dibujar() para la fórmula
+# semidesarrollada: cadena (con ch3) o anillo (sin ch2).
+CLAVES_CONOCIDAS = {
+    "con", "con-cooh", "con-ch2", "con-cooh-ch2", "con-ch3", "con-cooh-ch3",
+    "con-ch2-ch3", "con-cooh-ch2-ch3",
+    "con-circ", "con-circ-cooh", "con-circ-ch3", "con-circ-cooh-ch3",
+}
 
 
 def _revisar_vistas(entradas: list, dibujos: dict[str, dict[str, str]]) -> list[str]:
     """La política del resolvedor y la tabla de todas las entradas."""
     fallos: list[str] = []
-
     for nombre, claves, anillo, esperada in CASOS_ESTRUCTURA:
         vistas = construir.resolver_vistas({clave: "x" for clave in claves})
         obtenida = vistas["estructura"][anillo]
@@ -98,6 +156,12 @@ def _revisar_vistas(entradas: list, dibujos: dict[str, dict[str, str]]) -> list[
         if obtenida != esperada:
             fallos.append(f"{nombre}: se esperaba {esperada!r}, sale {obtenida!r}")
 
+    # el agrupado de los CH3 (y de los etilos) de las fórmulas de cadena
+    for nombre, formula, esperada in CASOS_CH3:
+        obtenida = _texto_cadena(_agrupar_ch3(analizar(formula.strip("-").strip())))
+        if obtenida != esperada:
+            fallos.append(f"CH3 ({nombre}): se esperaba {esperada!r}, sale {obtenida!r}")
+
     # sin ninguna variante «con» no hay sub-tabla de fórmula
     if "semidesarrollada" in construir.resolver_vistas({"esq": "x"}):
         fallos.append("sin variantes «con»: no debería haber sub-tabla")
@@ -107,6 +171,9 @@ def _revisar_vistas(entradas: list, dibujos: dict[str, dict[str, str]]) -> list[
         imagenes = dibujos.get(e.id)
         if imagenes is None:
             continue
+        for clave in imagenes:
+            if clave not in ("esq", "esq-circ") and clave not in CLAVES_CONOCIDAS:
+                fallos.append(f"{e.id}: clave dibujada desconocida {clave!r}")
         vistas = construir.resolver_vistas(imagenes)
         for clave in vistas["estructura"].values():
             if clave not in imagenes:
@@ -119,6 +186,7 @@ def _revisar_vistas(entradas: list, dibujos: dict[str, dict[str, str]]) -> list[
         esperados = {
             "cooh": "con-cooh" in imagenes or "con-circ-cooh" in imagenes,
             "ch2": "con-ch2" in imagenes or "con-cooh-ch2" in imagenes,
+            "ch3": "con-ch3" in imagenes or "con-circ-ch3" in imagenes,
         }
         if construir.conmutadores(vistas) != esperados:
             fallos.append(f"{e.id}: los chips no concuerdan con los dibujos")
@@ -186,8 +254,8 @@ def main() -> int:
             print(f"\nSMILES inválido en {e.id}")
             return 1
 
-    print(f"\nVistas: {len(CASOS_ESTRUCTURA) + len(CASOS_FORMULA)} casos de política "
-          f"y {len(dibujos)} entradas revisadas.")
+    print(f"\nVistas: {len(CASOS_ESTRUCTURA) + len(CASOS_FORMULA)} casos de política, "
+          f"{len(CASOS_CH3)} de agrupado del CH3 y {len(dibujos)} entradas revisadas.")
     print("Base de datos, dibujos y vistas correctos.")
     return 0
 

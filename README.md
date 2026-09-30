@@ -44,6 +44,7 @@ Detalles que se pueden conmutar en pantalla:
 | **2 puntos** en el nitrógeno | Como en los apuntes (`N̈`) |
 | **COOH** junto o desarrollado | `COOH` / `C(=O)-OH` |
 | **CH₂ seguidos** sueltos o agrupados | `CH2-CH2-CH2` / `(CH2)3` |
+| **CH₃ repetidos** sueltos o agrupados | `CH3-CH[CH3]-…` / `(CH3)2CH-…`, `(CH3CH2)2N-CH3` |
 
 ## ¿De dónde salen los datos?
 
@@ -161,7 +162,7 @@ be shared by email or chat and still work without an internet connection.
 
 **What's inside:** 143 entries (119 compounds + 24 reference cards) across 15
 families, with toggles for the aromatic ring style (alternating bonds vs.
-circle), the nitrogen lone pair (`N̈`), and two condensed-formula layouts.
+circle), the nitrogen lone pair (`N̈`), and three condensed-formula layouts.
 
 **Where the data comes from:** chemistry class notes; the compounds and groups
 in the database are taken from them.

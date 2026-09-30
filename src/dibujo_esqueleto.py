@@ -101,6 +101,21 @@ _LABELS_COOH = {
     "CH3-CH-COOH": "CH3-CH-C[=O]-OH",
 }
 
+# Grupos que se agrupan con el conmutador «CH3» en las fórmulas con anillo:
+# los metilos (o los etilos) repetidos del mismo átomo, como los escriben los
+# apuntes (N(CH3)2 en la ciclohexildimetilamina, C(CH3)3 en el
+# tert-butilbenceno...). Cada entrada es (SMARTS, etiqueta, átomo que lleva la
+# etiqueta, átomos que se borran). El orden importa: van del más específico
+# (tres metilos) al más general.
+_GRUPOS_CH3 = [
+    ("[CX4H0]([CH3])([CH3])[CH3]", "C(CH3)3", 0, (1, 2, 3)),
+    ("[CX4H1]([CH3])[CH3]", "CH(CH3)2", 0, (1, 2)),
+    ("[CX4H0]([CH3])[CH3]", "C(CH3)2", 0, (1, 2)),
+    ("[NX3H0]([CH3])[CH3]", "N(CH3)2", 0, (1, 2)),
+    ("[NX3H0]([CH2][CH3])[CH2][CH3]", "N(CH3CH2)2", 0, (1, 2, 3, 4)),
+    ("[OX2]([CH2][CH3])[CH2][CH3]", "O(CH3CH2)2", 0, (1, 2, 3, 4)),
+]
+
 
 def _limpiar_svg(svg: str) -> str:
     """Quita la declaración XML y los espacios de nombres que no se usan."""
@@ -474,7 +489,14 @@ def _puntos_n(
             cy = (caja[1] + caja[3]) / 2
             return (cx - q.x) ** 2 + (cy - q.y) ** 2
 
-        caja = min(cajas, key=distancia)
+        # En las etiquetas propias (N(CH3)2, CONH2...) los glifos van en el
+        # orden del texto: la N es el que toca. En las de RDKit (NH2...) la
+        # letra del símbolo es la que queda más cerca del átomo.
+        etiqueta = re.sub(r"<[^>]+>", "", etiquetas.get(i, ""))
+        if "N" in etiqueta and len(cajas) == len(etiqueta):
+            caja = cajas[etiqueta.index("N")]
+        else:
+            caja = min(cajas, key=distancia)
         tamano = d.FontSize()
         cx = (caja[0] + caja[2]) / 2
         cy = caja[1] - tamano * 0.10
@@ -734,11 +756,14 @@ def svg_condensado_anillo(
     *,
     circulos: bool = False,
     cooh_separado: bool = False,
+    ch3_agrupados: bool = False,
 ) -> str:
     """SVG semidesarrollado para compuestos con anillo (CH3, COOH, CHO...).
 
     Con `cooh_separado` los grupos COOH se escriben desarrollados
-    (C(=O)-OH) en vez de juntos, como pide el conmutador de la aplicación.
+    (C(=O)-OH) en vez de juntos y con `ch3_agrupados` los metilos (o etilos)
+    repetidos del mismo átomo se juntan en un grupo (N(CH3)2, C(CH3)3...):
+    son los conmutadores de la aplicación.
     """
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
@@ -755,6 +780,12 @@ def svg_condensado_anillo(
     # ralla entre los dos), no la etiqueta «OCH3».
     if es_anisol(mol):
         grupos = [g for g in _GRUPOS if g[1] != "OCH3"]
+    if ch3_agrupados:
+        base = grupos if grupos is not None else _GRUPOS
+        # la etiqueta suelta de la N,N-dietilanilina se sustituye por la
+        # agrupada: N(CH3CH2)2
+        base = [g for g in base if g[1] != "N[CH2[CH3]]-CH2-CH3"]
+        grupos = _GRUPOS_CH3 + base
     dibujo, etiquetas, anclas = _colapsar_grupos(mol, grupos)
     if cooh_separado:
         etiquetas = {i: _LABELS_COOH.get(et, et) for i, et in etiquetas.items()}

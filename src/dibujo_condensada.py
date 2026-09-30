@@ -14,8 +14,9 @@ El texto se convierte a curvas con fontTools, así el dibujo se ve igual en
 cualquier ordenador aunque no tenga la fuente instalada.
 
 La fórmula se puede variar con los conmutadores de la aplicación:
-`cooh_separado` dibuja los COOH como C(=O)-OH y `ch2_agrupados` junta los
-CH2 seguidos en (CH2)n.
+`cooh_separado` dibuja los COOH como C(=O)-OH, `ch2_agrupados` junta los
+CH2 seguidos en (CH2)n y `ch3_agrupados` junta en un grupo los CH3 (o los
+CH3CH2) que cuelgan del mismo átomo.
 """
 
 from __future__ import annotations
@@ -274,6 +275,184 @@ def _agrupar_ch2(cadena: Cadena) -> Cadena:
         salida.append((nodo, enlace))
         i += 1
     return salida
+
+
+# ---------------------------------------------------------------------------
+#  El conmutador «CH3»: fragmentos iguales del mismo átomo, dentro de un grupo
+# ---------------------------------------------------------------------------
+
+_GRUPOS_CARBONO = ("C", "CH", "CH2", "CH3")  # nodos de carbono de la cadena
+
+
+def _es_cadena_simple(nodo: Nodo) -> bool:
+    """Un nodo de carbono sin ramas (CH3, CH2, CH)."""
+    return (
+        nodo.grupo in ("CH3", "CH2", "CH")
+        and not nodo.arriba
+        and not nodo.abajo
+    )
+
+
+def _tramo_izquierdo(cadena: Cadena, i: int) -> list[int]:
+    """Índices del tramo de carbonos simple a la izquierda de `i`, del más
+    cercano a `i` hacia fuera."""
+    indices: list[int] = []
+    j = i - 1
+    while j >= 0 and cadena[j][1] == "-" and _es_cadena_simple(cadena[j][0]):
+        indices.append(j)
+        j -= 1
+    return indices
+
+
+def _tramo_derecho(cadena: Cadena, i: int) -> list[int]:
+    """Índices del tramo de carbonos simple a la derecha de `i`, del más
+    cercano a `i` hacia fuera."""
+    indices: list[int] = []
+    j = i + 1
+    while (
+        j < len(cadena)
+        and cadena[j - 1][1] == "-"
+        and _es_cadena_simple(cadena[j][0])
+    ):
+        indices.append(j)
+        j += 1
+    return indices
+
+
+def _forma_fragmento(nodos: list[Nodo]) -> str | None:
+    """Forma del fragmento escrito desde su extremo libre: «CH3» o «CH3CH2».
+
+    `nodos` va del enlace con el átomo hacia el extremo libre. Devuelve None
+    si el fragmento no acaba en CH3 o tiene más de dos carbonos (los apuntes
+    solo juntan metilos y etilos).
+    """
+    if not nodos or len(nodos) > 2 or nodos[-1].grupo != "CH3":
+        return None
+    if any(n.grupo not in ("CH3", "CH2") for n in nodos):
+        return None
+    return "".join(n.grupo for n in reversed(nodos))
+
+
+def _rama_suelta(nodo: Nodo) -> tuple[str, int] | None:
+    """La única rama sencilla (un solo grupo, sin ramas) del nodo, si hay
+    exactamente una. Son las que se pueden pasar a la cadena (el -NH2 de la
+    tert-butilamina, el -CH3 de la dietilmetilamina)."""
+    sueltas = [
+        (lado, k)
+        for lado in ("arriba", "abajo")
+        for k, rama in enumerate(getattr(nodo, lado))
+        if rama.enlace == "-"
+        and len(rama.cadena) == 1
+        and not rama.cadena[0][0].arriba
+        and not rama.cadena[0][0].abajo
+    ]
+    return sueltas[0] if len(sueltas) == 1 else None
+
+
+def _agrupar_ch3(cadena: Cadena) -> Cadena:
+    """Junta en un grupo los fragmentos iguales que cuelgan del mismo átomo.
+
+    Como en los apuntes: CH3-CH[CH3]-O-... -> (CH3)2CH-O-...,
+    CH3-C{NH2}[CH3]-CH3 -> (CH3)3C-NH2 y
+    CH3-CH2-N[CH3]-CH2-CH3 -> (CH3CH2)2N-CH3. Solo se agrupan fragmentos
+    que acaban en CH3 y no pasan de dos carbonos: metilos y etilos.
+
+    En un carbono hace falta que algún fragmento agrupado cuelgue de una
+    rama: si no, el resultado sería una cadena más larga disfrazada
+    (CH3-CH2-CH3 -> (CH3)2CH2, que no se escribe así).
+    """
+    nodos = list(cadena)
+    i = 0
+    while i < len(nodos):
+        nodo = nodos[i][0]
+        nodo.arriba = [Rama(r.enlace, _agrupar_ch3(r.cadena)) for r in nodo.arriba]
+        nodo.abajo = [Rama(r.enlace, _agrupar_ch3(r.cadena)) for r in nodo.abajo]
+
+        # Fragmentos que cuelgan del nodo: los tramos de la cadena a cada
+        # lado y las ramas. Se guardan por su forma (CH3, CH3CH2...).
+        fragmentos: dict[str, list[tuple]] = {}
+        izquierda = _tramo_izquierdo(nodos, i)
+        if izquierda:
+            forma = _forma_fragmento([nodos[j][0] for j in izquierda])
+            if forma:
+                fragmentos.setdefault(forma, []).append(("izquierda",))
+        derecha = _tramo_derecho(nodos, i)
+        if derecha:
+            forma = _forma_fragmento([nodos[j][0] for j in derecha])
+            if forma:
+                fragmentos.setdefault(forma, []).append(("derecha",))
+        for lado in ("arriba", "abajo"):
+            for k, rama in enumerate(getattr(nodo, lado)):
+                if rama.enlace != "-":
+                    continue
+                forma = _forma_fragmento([n for n, _ in rama.cadena])
+                if forma:
+                    fragmentos.setdefault(forma, []).append((lado, k))
+
+        # La forma con más fragmentos (a igualdad, la más larga).
+        candidatas = [
+            (forma, recs) for forma, recs in fragmentos.items() if len(recs) >= 2
+        ]
+        if not candidatas:
+            i += 1
+            continue
+        forma, recs = max(candidatas, key=lambda par: (len(par[1]), len(par[0])))
+        if nodo.grupo in _GRUPOS_CARBONO and not any(
+            r[0] in ("arriba", "abajo") for r in recs
+        ):
+            i += 1
+            continue
+
+        # Quitar las ramas agrupadas (de la última a la primera).
+        for lado in ("arriba", "abajo"):
+            indices = sorted((r[1] for r in recs if r[0] == lado), reverse=True)
+            for k in indices:
+                del getattr(nodo, lado)[k]
+
+        # El grupo se coloca donde estaba un fragmento de la cadena; si todos
+        # colgaban de ramas, va pegado a la derecha del nodo. Cuando se
+        # agrupan los dos tramos (la dietilmetilamina), se quitan los dos y el
+        # grupo ocupa el sitio del izquierdo.
+        grupo = Nodo(f"({forma}){len(recs)}")
+        hay_izquierda = any(r[0] == "izquierda" for r in recs)
+        hay_derecha = any(r[0] == "derecha" for r in recs)
+        if hay_izquierda and hay_derecha:
+            del nodos[i + 1 : i + 1 + len(derecha)]
+            nodos[i] = (nodo, "")
+            inicio = i - len(izquierda)
+            nodos[inicio:i] = [(grupo, "")]
+            i = inicio + 1
+        elif hay_izquierda:
+            inicio = i - len(izquierda)
+            nodos[inicio:i] = [(grupo, "")]
+            i = inicio + 1
+        elif hay_derecha:
+            fin = i + len(derecha)
+            enlace_final = nodos[fin][1]
+            nodos[i] = (nodo, "")
+            nodos[i + 1 : fin + 1] = [(grupo, enlace_final)]
+        else:
+            nodos.insert(i + 1, (grupo, nodos[i][1]))
+            nodos[i] = (nodo, "")
+
+        # Si el átomo se queda sin vecinos en la cadena y solo le cuelga una
+        # rama sencilla, la rama pasa a la cadena: (CH3)3C-NH2,
+        # (CH3CH2)2N-CH3. Así se escribe en los apuntes.
+        if (hay_izquierda and i == len(nodos) - 1) or (hay_derecha and i == 0):
+            suelta = _rama_suelta(nodo)
+            if suelta is not None:
+                lado, k = suelta
+                rama = getattr(nodo, lado).pop(k)
+                vecino = (rama.cadena[0][0], rama.enlace)
+                if hay_izquierda:
+                    # pasa al final de la cadena
+                    nodos[i] = (nodo, rama.enlace)
+                    nodos.insert(i + 1, (vecino[0], ""))
+                else:
+                    nodos.insert(i, vecino)
+                    i += 1
+        i += 1
+    return nodos
 
 
 # ---------------------------------------------------------------------------
@@ -607,11 +786,14 @@ def svg_condensada(
     *,
     cooh_separado: bool = False,
     ch2_agrupados: bool = False,
+    ch3_agrupados: bool = False,
 ) -> str:
     """Devuelve el SVG de la fórmula semidesarrollada.
 
-    `cooh_separado` dibuja los COOH como C(=O)-OH y `ch2_agrupados` junta
-    los CH2 seguidos en (CH2)n: son los conmutadores de la aplicación.
+    `cooh_separado` dibuja los COOH como C(=O)-OH, `ch2_agrupados` junta los
+    CH2 seguidos en (CH2)n y `ch3_agrupados` junta en un grupo los CH3 (o los
+    CH3CH2) que cuelgan del mismo átomo: son los conmutadores de la
+    aplicación.
     """
     fuente = Fuente()
     formula = formula.strip()
@@ -623,6 +805,8 @@ def svg_condensada(
         cadena = _expandir_cooh(cadena)
     if ch2_agrupados:
         cadena = _agrupar_ch2(cadena)
+    if ch3_agrupados:
+        cadena = _agrupar_ch3(cadena)
 
     lienzo = Lienzo()
     hueco = tamano * ENLACE * 0.85

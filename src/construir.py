@@ -77,7 +77,8 @@ def dibujar(entrada: catalogo.Entrada) -> dict[str, str]:
     se quita la segunda para no repetir el mismo dibujo. Si hay anillos
     aromáticos se generan además las versiones con círculo ('-circ'). La
     fórmula semidesarrollada lleva variantes para los conmutadores: '-cooh'
-    (los COOH separados en C(=O)-OH) y '-ch2' (los CH2 seguidos juntos).
+    (los COOH separados en C(=O)-OH), '-ch2' (los CH2 seguidos juntos) y
+    '-ch3' (los CH3 repetidos del mismo átomo en un grupo).
     """
     imagenes: dict[str, str] = {}
 
@@ -91,25 +92,35 @@ def dibujar(entrada: catalogo.Entrada) -> dict[str, str]:
         )
 
     if entrada.condensada:
-        for clave, cooh, ch2 in (
-            ("con", False, False),
-            ("con-cooh", True, False),
-            ("con-ch2", False, True),
-            ("con-cooh-ch2", True, True),
+        for clave, cooh, ch2, ch3 in (
+            ("con", False, False, False),
+            ("con-cooh", True, False, False),
+            ("con-ch2", False, True, False),
+            ("con-cooh-ch2", True, True, False),
+            ("con-ch3", False, False, True),
+            ("con-cooh-ch3", True, False, True),
+            ("con-ch2-ch3", False, True, True),
+            ("con-cooh-ch2-ch3", True, True, True),
         ):
             imagenes[clave] = svg_condensada(
-                entrada.condensada, cooh_separado=cooh, ch2_agrupados=ch2
+                entrada.condensada, cooh_separado=cooh, ch2_agrupados=ch2,
+                ch3_agrupados=ch3,
             )
     elif es_anillo(entrada.smiles):
-        imagenes["con"] = svg_condensado_anillo(entrada.smiles)
-        imagenes["con-cooh"] = svg_condensado_anillo(
-            entrada.smiles, cooh_separado=True
-        )
-        if aromatico:
-            imagenes["con-circ"] = svg_condensado_anillo(entrada.smiles, circulos=True)
-            imagenes["con-circ-cooh"] = svg_condensado_anillo(
-                entrada.smiles, circulos=True, cooh_separado=True
+        for clave, cooh, ch3 in (
+            ("con", False, False),
+            ("con-cooh", True, False),
+            ("con-ch3", False, True),
+            ("con-cooh-ch3", True, True),
+        ):
+            imagenes[clave] = svg_condensado_anillo(
+                entrada.smiles, cooh_separado=cooh, ch3_agrupados=ch3
             )
+            if aromatico:
+                imagenes[f"con-circ{clave[len('con'):]}"] = svg_condensado_anillo(
+                    entrada.smiles, circulos=True, cooh_separado=cooh,
+                    ch3_agrupados=ch3,
+                )
 
     return _quitar_repetidas(imagenes)
 
@@ -144,28 +155,44 @@ def _quitar_repetidas(imagenes: dict[str, str]) -> dict[str, str]:
 ANILLOS = ("rayas", "circulo")
 COOHS = ("junto", "separado")
 CH2S = ("sueltos", "agrupados")
+CH3S = ("sueltos", "agrupados")
 
 # Lo que se prueba en cada estado de los chips de la fórmula: primero la
 # variante más completa y después las que van soltando conmutadores; el COOH
-# manda sobre el CH2, como cuando lo decidía la aplicación.
+# manda sobre el CH2 y el CH2 sobre el CH3, como cuando lo decidía la
+# aplicación. Las claves van en el orden del nombre de la variante
+# («con-cooh-ch2-ch3»).
 _SUFIJOS = {
-    ("junto", "sueltos"): ("",),
-    ("junto", "agrupados"): ("ch2", ""),
-    ("separado", "sueltos"): ("cooh", ""),
-    ("separado", "agrupados"): ("cooh-ch2", "cooh", "ch2", ""),
+    ("junto", "sueltos", "sueltos"): ("",),
+    ("junto", "sueltos", "agrupados"): ("ch3", ""),
+    ("junto", "agrupados", "sueltos"): ("ch2", ""),
+    ("junto", "agrupados", "agrupados"): ("ch2-ch3", "ch2", "ch3", ""),
+    ("separado", "sueltos", "sueltos"): ("cooh", ""),
+    ("separado", "sueltos", "agrupados"): ("cooh-ch3", "cooh", "ch3", ""),
+    ("separado", "agrupados", "sueltos"): ("cooh-ch2", "cooh", "ch2", ""),
+    ("separado", "agrupados", "agrupados"): (
+        "cooh-ch2-ch3",
+        "cooh-ch2",
+        "cooh-ch3",
+        "cooh",
+        "ch2-ch3",
+        "ch2",
+        "ch3",
+        "",
+    ),
 }
 
 
 def resolver_vistas(imagenes: dict[str, str]) -> dict[str, dict[str, str]]:
     """Qué dibujo enseña cada combinación de los conmutadores.
 
-    Devuelve `estructura` (rayas o círculo) y `semidesarrollada` (las ocho
-    combinaciones de anillo, COOH y CH2), que no aparece si la entrada no
-    tiene ninguna variante `con*`. La política es la de siempre: primero el
-    anillo —el círculo, si el conmutador está encendido y existe— y después
-    la variante de la fórmula más completa que se haya dibujado, de modo que
-    un conmutador sin variante no cambia el dibujo y toda casilla tiene una
-    clave que existe.
+    Devuelve `estructura` (rayas o círculo) y `semidesarrollada` (las
+    dieciséis combinaciones de anillo, COOH, CH2 y CH3), que no aparece si la
+    entrada no tiene ninguna variante `con*`. La política es la de siempre:
+    primero el anillo —el círculo, si el conmutador está encendido y existe—
+    y después la variante de la fórmula más completa que se haya dibujado, de
+    modo que un conmutador sin variante no cambia el dibujo y toda casilla
+    tiene una clave que existe.
     """
     vistas: dict[str, dict[str, str]] = {
         "estructura": {
@@ -181,16 +208,17 @@ def resolver_vistas(imagenes: dict[str, str]) -> dict[str, dict[str, str]]:
         circulares = ("-circ", "") if anillo == "circulo" else ("",)
         for cooh in COOHS:
             for ch2 in CH2S:
-                clave = ""
-                for circular in circulares:
-                    for sufijo in _SUFIJOS[(cooh, ch2)]:
-                        candidata = "con" + circular + (f"-{sufijo}" if sufijo else "")
-                        if candidata in imagenes:
-                            clave = candidata
+                for ch3 in CH3S:
+                    clave = ""
+                    for circular in circulares:
+                        for sufijo in _SUFIJOS[(cooh, ch2, ch3)]:
+                            candidata = "con" + circular + (f"-{sufijo}" if sufijo else "")
+                            if candidata in imagenes:
+                                clave = candidata
+                                break
+                        if clave:
                             break
-                    if clave:
-                        break
-                semidesarrollada[f"{anillo}-{cooh}-{ch2}"] = clave
+                    semidesarrollada[f"{anillo}-{cooh}-{ch2}-{ch3}"] = clave
     vistas["semidesarrollada"] = semidesarrollada
     return vistas
 
@@ -201,6 +229,7 @@ def conmutadores(vistas: dict[str, dict[str, str]]) -> dict[str, bool]:
     return {
         "cooh": any("-cooh" in clave for clave in claves),
         "ch2": any("-ch2" in clave for clave in claves),
+        "ch3": any("-ch3" in clave for clave in claves),
     }
 
 
