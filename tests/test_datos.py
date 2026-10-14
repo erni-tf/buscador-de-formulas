@@ -15,7 +15,7 @@ sys.path.insert(0, str(RAIZ / "src"))
 
 import catalogo  # noqa: E402
 import construir  # noqa: E402
-from dibujo_condensada import _agrupar_ch3, analizar  # noqa: E402
+from dibujo_condensada import _agrupar_ch3, analizar, svg_condensada  # noqa: E402
 from rdkit import Chem, RDLogger  # noqa: E402
 
 RDLogger.DisableLog("rdApp.*")
@@ -117,6 +117,22 @@ CASOS_CH3 = [
 ]
 
 
+# ---------------------------------------------------------------------------
+#  El DSL con grupos agrupados: paréntesis y la n de (CH2)n
+#
+#  Los apuntes escriben las cadenas genéricas como (CH2)n y los grupos
+#  repetidos como (CH3)2, (CH2)3...; el analizador tiene que aceptarlos y
+#  dibujarlos.
+# ---------------------------------------------------------------------------
+
+CASOS_DSL = [
+    ("agrupado de CH2", "CH3-(CH2)3-COOH", "CH3-(CH2)3-COOH"),
+    ("cadena genérica", "CH3-(CH2)n-C{=O}-OH", "CH3-(CH2)n-C{=O}-OH"),
+    ("éster bajo con su =O", "CH3-CH[O-C{=O}-CH3]-CH3", "CH3-CH[O-C{=O}-CH3]-CH3"),
+    ("rama a la izquierda", "OH-CH2[<OH-CH[<OH-CH2]]", "OH-CH2[<OH-CH[<OH-CH2]]"),
+]
+
+
 def _texto_cadena(cadena) -> str:
     """Vuelve a escribir la cadena en el DSL (para los casos del CH3)."""
     partes = []
@@ -127,7 +143,8 @@ def _texto_cadena(cadena) -> str:
                 contenido = _texto_cadena(rama.cadena)
                 if rama.enlace != "-":
                     contenido = rama.enlace + contenido
-                texto += etiqueta[0] + contenido + etiqueta[1]
+                vuelta = "<" if rama.izquierda else ""
+                texto += etiqueta[0] + vuelta + contenido + etiqueta[1]
         partes.append(texto + enlace)
     return "".join(partes)
 
@@ -161,6 +178,14 @@ def _revisar_vistas(entradas: list, dibujos: dict[str, dict[str, str]]) -> list[
         obtenida = _texto_cadena(_agrupar_ch3(analizar(formula.strip("-").strip())))
         if obtenida != esperada:
             fallos.append(f"CH3 ({nombre}): se esperaba {esperada!r}, sale {obtenida!r}")
+
+    # los grupos agrupados del DSL: (CH2)n, (CH3)2... se leen y se dibujan
+    for nombre, formula, esperada in CASOS_DSL:
+        obtenida = _texto_cadena(analizar(formula))
+        if obtenida != esperada:
+            fallos.append(f"DSL ({nombre}): se esperaba {esperada!r}, sale {obtenida!r}")
+        if "<svg" not in svg_condensada(formula):
+            fallos.append(f"DSL ({nombre}): el SVG no parece válido")
 
     # sin ninguna variante «con» no hay sub-tabla de fórmula
     if "semidesarrollada" in construir.resolver_vistas({"esq": "x"}):
@@ -255,7 +280,8 @@ def main() -> int:
             return 1
 
     print(f"\nVistas: {len(CASOS_ESTRUCTURA) + len(CASOS_FORMULA)} casos de política, "
-          f"{len(CASOS_CH3)} de agrupado del CH3 y {len(dibujos)} entradas revisadas.")
+          f"{len(CASOS_CH3)} de agrupado del CH3, {len(CASOS_DSL)} del DSL y "
+          f"{len(dibujos)} entradas revisadas.")
     print("Base de datos, dibujos y vistas correctos.")
     return 0
 

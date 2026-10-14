@@ -5,8 +5,12 @@ Convierte una fórmula escrita en el DSL propio en un SVG limpio:
     CH3-C{=O}-CH2-CH3
 
   * grupos:  CH3, CH2, CH, C, O, OH, F, Cl, Br, I, N, NH2, CHO, COOH, NO2...
+  * grupos agrupados entre paréntesis: (CH2)3, (CH3)2, (CH2)n (la n en
+    subíndice), como los escriben los apuntes
   * enlaces: - simple, = doble, # triple
   * rama arriba: { ... }      rama abajo: [ ... ]
+  * rama hacia la izquierda: [< ... ]  (y {< ... } por arriba); se une al
+    padre por su último grupo, como la glicerina de los apuntes
   * dentro de una rama se puede indicar el enlace:  C{=O}
   * un guion al principio o al final dibuja un enlace abierto (fichas)
 
@@ -44,6 +48,7 @@ INICIO_ABAJO = 0.16  # y algo por debajo de la línea base
 ALTO_GLIFO = 0.662   # altura de las mayúsculas y los dígitos de la fuente
 FIN_RAMA = 0.16      # hueco entre el final del enlace y la rama
 HUECO_RAMAS = 0.50   # hueco mínimo entre dos ramas vecinas del mismo lado
+HUECO_VUELTA = 0.12  # hueco entre una rama y el texto del padre si vuelve
 GROSOR = 0.075       # grosor de línea
 MARGEN = 0.35        # margen alrededor del dibujo
 ASCENSO = 0.72       # altura del texto por encima de la línea base
@@ -128,19 +133,29 @@ class Nodo:
     abajo: list["Rama"] = field(default_factory=list)
 
     def trozos(self) -> list[Trozo]:
-        """Divide el grupo en texto, subíndices y el signo ⁻: CH3 -> CH + 3."""
+        """Divide el grupo en texto, subíndices y el signo ⁻: CH3 -> CH + 3.
+
+        La «n» de los grupos genéricos de los apuntes ((CH2)n) también va de
+        subíndice: (CH₂)ₙ.
+        """
         return [
-            Trozo(t, t.isdigit())
-            for t in re.findall(r"\d+|⁻|[^\d⁻]+", self.grupo)
+            Trozo(t, t.isdigit() or t == "n")
+            for t in re.findall(r"\d+|n|⁻|[^\dn⁻]+", self.grupo)
         ]
 
 
 @dataclass
 class Rama:
-    """Una rama vertical: su enlace con el grupo padre y su cadena."""
+    """Una rama vertical: su enlace con el grupo padre y su cadena.
+
+    `izquierda` dibuja la rama hacia la izquierda, con su último átomo (el
+    que se une al padre) bajo el ancla: es la disposición de los apuntes para
+    la glicerina, con los carbonos a la derecha y las cadenas a la izquierda.
+    """
 
     enlace: str
     cadena: "Cadena"
+    izquierda: bool = False
 
 
 Cadena = list[tuple[Nodo, str]]  # (nodo, enlace que le sigue: "-", "=", "#", "")
@@ -163,11 +178,17 @@ def analizar(texto: str) -> Cadena:
             cierre = "}" if texto[pos] == "{" else "]"
             pos += 1
             saltar_espacios()
+            # «<» dibuja la rama hacia la izquierda (la glicerina apilada).
+            izquierda = False
+            if pos < len(texto) and texto[pos] == "<":
+                izquierda = True
+                pos += 1
+                saltar_espacios()
             enlace = "-"
             if pos < len(texto) and texto[pos] in "-=#":
                 enlace = texto[pos]
                 pos += 1
-            lado.append(Rama(enlace, leer_cadena(hasta=(cierre, ","))))
+            lado.append(Rama(enlace, leer_cadena(hasta=(cierre, ",")), izquierda))
             saltar_espacios()
             if pos < len(texto) and texto[pos] == ",":
                 pos += 1
@@ -181,8 +202,9 @@ def analizar(texto: str) -> Cadena:
         nonlocal pos
         saltar_espacios()
         inicio = pos
+        # Los grupos agrupados llevan paréntesis: (CH2)n, (CH3)2, (CH2)3.
         while pos < len(texto) and (
-            texto[pos].isalnum() or texto[pos] in "'⁻⁺"
+            texto[pos].isalnum() or texto[pos] in "'⁻⁺()"
         ):
             pos += 1
         if inicio == pos:
@@ -227,8 +249,12 @@ def _expandir_cooh(cadena: Cadena) -> Cadena:
     """
     salida: Cadena = []
     for nodo, enlace in cadena:
-        nodo.arriba = [Rama(r.enlace, _expandir_cooh(r.cadena)) for r in nodo.arriba]
-        nodo.abajo = [Rama(r.enlace, _expandir_cooh(r.cadena)) for r in nodo.abajo]
+        nodo.arriba = [
+            Rama(r.enlace, _expandir_cooh(r.cadena), r.izquierda) for r in nodo.arriba
+        ]
+        nodo.abajo = [
+            Rama(r.enlace, _expandir_cooh(r.cadena), r.izquierda) for r in nodo.abajo
+        ]
         if not nodo.arriba and not nodo.abajo and nodo.grupo == "COOH":
             carbono = Nodo("C", abajo=[Rama("=", [(Nodo("O"), "")])])
             salida.append((carbono, "-"))
@@ -258,8 +284,12 @@ def _agrupar_ch2(cadena: Cadena) -> Cadena:
     i = 0
     while i < total:
         nodo, enlace = cadena[i]
-        nodo.arriba = [Rama(r.enlace, _agrupar_ch2(r.cadena)) for r in nodo.arriba]
-        nodo.abajo = [Rama(r.enlace, _agrupar_ch2(r.cadena)) for r in nodo.abajo]
+        nodo.arriba = [
+            Rama(r.enlace, _agrupar_ch2(r.cadena), r.izquierda) for r in nodo.arriba
+        ]
+        nodo.abajo = [
+            Rama(r.enlace, _agrupar_ch2(r.cadena), r.izquierda) for r in nodo.abajo
+        ]
         if _es_ch2_simple(nodo):
             j = i
             while (
@@ -365,8 +395,12 @@ def _agrupar_ch3(cadena: Cadena) -> Cadena:
     i = 0
     while i < len(nodos):
         nodo = nodos[i][0]
-        nodo.arriba = [Rama(r.enlace, _agrupar_ch3(r.cadena)) for r in nodo.arriba]
-        nodo.abajo = [Rama(r.enlace, _agrupar_ch3(r.cadena)) for r in nodo.abajo]
+        nodo.arriba = [
+            Rama(r.enlace, _agrupar_ch3(r.cadena), r.izquierda) for r in nodo.arriba
+        ]
+        nodo.abajo = [
+            Rama(r.enlace, _agrupar_ch3(r.cadena), r.izquierda) for r in nodo.abajo
+        ]
 
         # Fragmentos que cuelgan del nodo: los tramos de la cadena a cada
         # lado y las ramas. Se guardan por su forma (CH3, CH3CH2...).
@@ -571,6 +605,38 @@ def _ancla_grupo(fuente: Fuente, nodo: Nodo, tamano: float) -> float:
     return primera / 2 - ancho / 2
 
 
+def _desplazamiento_rama(
+    fuente: Fuente, rama: Rama, hacia_arriba: bool, tamano: float
+) -> float:
+    """Distancia de la línea base del padre a la de la rama.
+
+    Es la de siempre (RAMAS_ARRIBA/RAMAS_ABAJO), salvo cuando la rama lleva
+    dentro otra que vuelve hacia el padre (el =O de un éster dibujado debajo,
+    por ejemplo): entonces se aparta lo necesario para que la de dentro no se
+    meta en el texto del padre.
+    """
+    rm = medir(fuente, rama.cadena, tamano)
+    if hacia_arriba:
+        vuelta = tamano * (ASCENSO + HUECO_VUELTA) + rm.abajo
+        return max(tamano * RAMAS_ARRIBA, vuelta)
+    vuelta = tamano * (DESCENSO + HUECO_VUELTA) + rm.arriba
+    return max(tamano * RAMAS_ABAJO, vuelta)
+
+
+def _borde_izquierdo(fuente: Fuente, rama: Rama, tamano: float) -> float:
+    """Distancia del ancla del padre al borde izquierdo de la rama.
+
+    Las ramas normales cuelgan de su primer átomo (el ancla lo centra); las
+    que van hacia la izquierda se alinean por el último átomo, el que se une
+    al padre.
+    """
+    if rama.izquierda:
+        centros = centros_grupos(fuente, rama.cadena, tamano)
+        ultimo = rama.cadena[-1][0]
+        return centros[-1] + _ancla_grupo(fuente, ultimo, tamano)
+    return fuente.ancho(_primera_parte(rama.cadena[0][0].grupo), tamano) / 2
+
+
 def _medir_nodo(fuente: Fuente, nodo: Nodo, tamano: float) -> MedidasNodo:
     """Mide un nodo. Las ramas no ensanchan el hueco del grupo: van por encima
     y por debajo, así que el texto de al lado puede pasar por debajo de ellas.
@@ -584,20 +650,20 @@ def _medir_nodo(fuente: Fuente, nodo: Nodo, tamano: float) -> MedidasNodo:
         for rama in ramas:
             if not rama.cadena:
                 continue
-            # la primera letra de la rama queda centrada bajo el primer átomo
-            # del grupo padre; se mide cuánto sobresale la rama por cada lado
-            primera = fuente.ancho(_primera_parte(rama.cadena[0][0].grupo), tamano) / 2
+            # se mide cuánto sobresale la rama por cada lado de su grupo padre
             rm = medir(fuente, rama.cadena, tamano)
-            izq = primera - ancla
-            der = max(0.0, rm.ancho - izq)
+            desplazamiento = _desplazamiento_rama(fuente, rama, lado, tamano)
+            borde = _borde_izquierdo(fuente, rama, tamano)
+            izq = borde - ancla
+            der = max(0.0, rm.ancho - borde + ancla)
             if lado:
                 m.ramas_arriba_izq = max(m.ramas_arriba_izq, max(0.0, izq))
                 m.ramas_arriba_der = max(m.ramas_arriba_der, der)
-                m.arriba = max(m.arriba, tamano * RAMAS_ARRIBA + rm.arriba)
+                m.arriba = max(m.arriba, desplazamiento + rm.arriba)
             else:
                 m.ramas_abajo_izq = max(m.ramas_abajo_izq, max(0.0, izq))
                 m.ramas_abajo_der = max(m.ramas_abajo_der, der)
-                m.abajo = max(m.abajo, tamano * RAMAS_ABAJO + rm.abajo)
+                m.abajo = max(m.abajo, desplazamiento + rm.abajo)
 
     return m
 
@@ -738,25 +804,29 @@ def _dibujar_nodo(
     for rama in nodo.arriba:
         if not rama.cadena:
             continue
-        base_rama = base - tamano * RAMAS_ARRIBA
+        base_rama = base - _desplazamiento_rama(fuente, rama, True, tamano)
         _enlace_vertical(
             lienzo, rama.enlace, ancla,
             base - tamano * INICIO_ARRIBA, base_rama + tamano * FIN_RAMA, tamano,
         )
-        primera = fuente.ancho(_primera_parte(rama.cadena[0][0].grupo), tamano) / 2
-        dibujar(lienzo, fuente, rama.cadena, ancla - primera, base_rama, tamano)
+        dibujar(
+            lienzo, fuente, rama.cadena,
+            ancla - _borde_izquierdo(fuente, rama, tamano), base_rama, tamano,
+        )
 
     for rama in nodo.abajo:
         if not rama.cadena:
             continue
-        base_rama = base + tamano * RAMAS_ABAJO
+        base_rama = base + _desplazamiento_rama(fuente, rama, False, tamano)
         _enlace_vertical(
             lienzo, rama.enlace, ancla,
             base + tamano * INICIO_ABAJO,
             base_rama - tamano * (ALTO_GLIFO + FIN_RAMA), tamano,
         )
-        primera = fuente.ancho(_primera_parte(rama.cadena[0][0].grupo), tamano) / 2
-        dibujar(lienzo, fuente, rama.cadena, ancla - primera, base_rama, tamano)
+        dibujar(
+            lienzo, fuente, rama.cadena,
+            ancla - _borde_izquierdo(fuente, rama, tamano), base_rama, tamano,
+        )
 
 
 def dibujar(
